@@ -1,11 +1,10 @@
+/**
+ * Copyright (c) 2025 Benjamin BARRERE / IA SOLUTION
+ * Patent Pending FR2514274 | CC BY-NC-SA 4.0
+ * Commercial license: contact@ia-solution.fr
+ */
+
 import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-
-const connectionString = process.env.DATABASE_URL;
-
-if (!connectionString) {
-  throw new Error("DATABASE_URL env var is required to initialize PrismaClient");
-}
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
@@ -13,9 +12,7 @@ const globalForPrisma = globalThis as unknown as {
 
 export const prisma =
   globalForPrisma.prisma ??
-  new PrismaClient({
-    adapter: new PrismaPg({ connectionString }),
-  });
+  new PrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
