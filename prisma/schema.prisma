@@ -1,0 +1,264 @@
+// prisma/schema.prisma
+// HCS-U7 Admin Dashboard Database Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+// ========================================
+// TENANTS (Clients HCS-U7)
+// ========================================
+model Tenant {
+  id            String   @id @default(cuid())
+  
+  // Contact info
+  email         String   @unique
+  fullName      String
+  company       String?
+  website       String?
+  
+  // Plan & billing
+  plan          Plan     @default(FREE)
+  status        TenantStatus @default(TRIAL)
+  
+  // Quotas
+  monthlyQuota  Int      // Ex: 5000 for Starter
+  currentUsage  Int      @default(0)
+  
+  // Dates
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  trialEndsAt   DateTime?
+  subscriptionEndsAt DateTime?
+  
+  // Relations
+  apiKeys       ApiKey[]
+  usageLogs     UsageLog[]
+  billingEvents BillingEvent[]
+  
+  // Metadata (use case, estimated volume, source, etc.)
+  metadata      Json?
+  
+  // Internal notes (admin only)
+  internalNotes String?
+  
+  @@index([email])
+  @@index([status])
+  @@index([plan])
+  @@map("tenants")
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PRO
+  BUSINESS
+  ENTERPRISE
+}
+
+enum TenantStatus {
+  TRIAL        // Active trial period
+  ACTIVE       // Active paid subscription
+  SUSPENDED    // Quota exceeded or payment failed
+  CANCELLED    // Customer cancelled
+  CHURNED      // Inactive for >60 days
+}
+
+// ========================================
+// API KEYS
+// ========================================
+model ApiKey {
+  id            String   @id @default(cuid())
+  
+  // Key (hash only, never plain text)
+  keyHash       String   @unique
+  keyPrefix     String   // "hcs_sk_live_" or "hcs_sk_test_"
+  lastFourChars String   // For masked display
+  
+  // Metadata
+  name          String?  // "Production API", "Staging", etc.
+  environment   Environment @default(PRODUCTION)
+  
+  // Relations
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  // Status
+  isActive      Boolean  @default(true)
+  
+  // Dates
+  createdAt     DateTime @default(now())
+  lastUsedAt    DateTime?
+  expiresAt     DateTime? // For temporary keys
+  
+  // Permissions (for future granularity)
+  scopes        String[] // ["verify", "generate", "auth", "admin"]
+  
+  // Rate limiting (future)
+  rateLimit     Int?     // Requests per minute
+  
+  @@index([tenantId])
+  @@index([keyHash])
+  @@index([environment])
+  @@map("api_keys")
+}
+
+enum Environment {
+  PRODUCTION
+  STAGING
+  DEVELOPMENT
+}
+
+// ========================================
+// USAGE LOGS (API Consumption)
+// ========================================
+model UsageLog {
+  id            String   @id @default(cuid())
+  
+  // Relations
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  // Request details
+  endpoint      String   // "/v1/verify", "/v1/generate"
+  method        String   // "POST", "GET"
+  statusCode    Int      // 200, 401, 429, 500
+  
+  // Billing
+  billable      Boolean  @default(true)
+  cost          Float?   // Cost of this request (ex: 0.004€)
+  
+  // Metadata
+  ipAddress     String?
+  userAgent     String?
+  responseTime  Int?     // Response time in ms
+  errorMessage  String?  // If error
+  
+  // Timestamp
+  createdAt     DateTime @default(now())
+  
+  @@index([tenantId, createdAt])
+  @@index([endpoint])
+  @@index([statusCode])
+  @@map("usage_logs")
+}
+
+// ========================================
+// BILLING EVENTS (Invoicing)
+// ========================================
+model BillingEvent {
+  id            String   @id @default(cuid())
+  
+  // Relations
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  // Event type
+  type          BillingEventType
+  
+  // Amounts
+  amount        Float    // In euros
+  currency      String   @default("EUR")
+  
+  // Period
+  periodStart   DateTime
+  periodEnd     DateTime
+  
+  // Stripe (if integrated later)
+  stripeInvoiceId String?
+  stripePaid      Boolean @default(false)
+  stripePaymentIntentId String?
+  
+  // Metadata
+  description   String?
+  metadata      Json?    // Details (number of verifications, overage, etc.)
+  
+  // Dates
+  createdAt     DateTime @default(now())
+  paidAt        DateTime?
+  dueDate       DateTime?
+  
+  @@index([tenantId, createdAt])
+  @@index([type])
+  @@index([stripePaid])
+  @@map("billing_events")
+}
+
+enum BillingEventType {
+  SUBSCRIPTION_CREATED
+  SUBSCRIPTION_RENEWED
+  OVERAGE_CHARGE
+  PLAN_UPGRADED
+  PLAN_DOWNGRADED
+  REFUND
+  PAYMENT_FAILED
+  TRIAL_STARTED
+  TRIAL_ENDED
+}
+
+// ========================================
+// ADMIN USERS (Dashboard access)
+// ========================================
+model AdminUser {
+  id            String   @id @default(cuid())
+  
+  // Auth
+  email         String   @unique
+  passwordHash  String
+  
+  // Permissions
+  role          AdminRole @default(VIEWER)
+  
+  // Profile
+  fullName      String?
+  avatarUrl     String?
+  
+  // Dates
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lastLoginAt   DateTime?
+  
+  @@index([email])
+  @@index([role])
+  @@map("admin_users")
+}
+
+enum AdminRole {
+  SUPER_ADMIN  // Everything (Benjamin)
+  ADMIN        // Client + key management (future employee)
+  SUPPORT      // Read + client notes (future support)
+  VIEWER       // Read-only analytics (investors)
+}
+
+// ========================================
+// AUDIT LOGS (Admin action traceability)
+// ========================================
+model AuditLog {
+  id            String   @id @default(cuid())
+  
+  // Who
+  adminUserId   String
+  adminEmail    String
+  
+  // What
+  action        String   // "CLIENT_CREATED", "API_KEY_GENERATED", "PLAN_CHANGED"
+  entityType    String   // "Tenant", "ApiKey", "BillingEvent"
+  entityId      String   // ID of modified entity
+  
+  // Details
+  changes       Json?    // Before/after
+  ipAddress     String?
+  userAgent     String?
+  
+  // When
+  createdAt     DateTime @default(now())
+  
+  @@index([adminUserId, createdAt])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
