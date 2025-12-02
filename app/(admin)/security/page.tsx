@@ -8,6 +8,7 @@ import { AdminRole } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth-helpers";
+import { SecurityCredentialsForm } from "@/components/admin/SecurityCredentialsForm";
 
 export const dynamic = "force-dynamic";
 
@@ -102,6 +103,8 @@ export default async function SecurityPage() {
           Vue temps réel des appels suspects, erreurs et bloqueurs sur l'API HCS-U7.
         </p>
       </div>
+
+      <SecurityCredentialsForm />
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">
