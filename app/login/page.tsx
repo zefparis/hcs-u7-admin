@@ -28,14 +28,17 @@ function LoginPageInner() {
 
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
 
-  const [email, setEmail] = useState("admin@ia-solution.fr");
+  const [email, setEmail] = useState("contact@ia-solution.fr");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setInfo("");
     setLoading(true);
 
     try {
@@ -56,6 +59,60 @@ function LoginPageInner() {
       setError("Une erreur est survenue. Veuillez réessayer.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleResetPassword() {
+    if (!email.trim()) {
+      setError("Veuillez renseigner votre email pour demander un nouveau mot de passe.");
+      return;
+    }
+
+    setError("");
+    setInfo("");
+    setResetLoading(true);
+
+    try {
+      const res = await fetch("/api/account/reset-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: email.toLowerCase().trim() }),
+      });
+
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        brevoStatus?: number;
+        brevoOk?: boolean;
+        brevoError?: string;
+      };
+
+      if (!res.ok) {
+        if (data.error) {
+          setError(data.error);
+        } else {
+          setError("La demande de nouveau mot de passe a échoué. Réessayez plus tard.");
+        }
+        return;
+      }
+
+      if (typeof data.brevoOk === "boolean" && !data.brevoOk) {
+        setError(
+          `Envoi de l'email Brevo échoué (status ${
+            data.brevoStatus ?? "inconnu"
+          }). Détail: ${data.brevoError ?? "voir logs serveur"}.`,
+        );
+        return;
+      }
+
+      setInfo(
+        "Si un compte existe pour cet email, un nouveau mot de passe temporaire vient d'être envoyé. Consultez votre boîte de réception."
+      );
+    } catch {
+      setError("Impossible de demander un nouveau mot de passe. Réessayez plus tard.");
+    } finally {
+      setResetLoading(false);
     }
   }
 
@@ -80,7 +137,7 @@ function LoginPageInner() {
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@ia-solution.fr"
+                placeholder="contact@ia-solution.fr"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -99,11 +156,27 @@ function LoginPageInner() {
                 required
                 autoComplete="current-password"
               />
+              <button
+                type="button"
+                onClick={handleResetPassword}
+                className="mt-1 text-xs text-blue-600 hover:underline disabled:opacity-60"
+                disabled={resetLoading}
+              >
+                {resetLoading
+                  ? "Envoi du nouveau mot de passe..."
+                  : "Mot de passe oublié ?"}
+              </button>
             </div>
 
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {info && !error && (
+              <Alert>
+                <AlertDescription>{info}</AlertDescription>
               </Alert>
             )}
 
