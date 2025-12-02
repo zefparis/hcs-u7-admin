@@ -4,7 +4,10 @@
  * Commercial license: contact@ia-solution.fr
  */
 
+import { AdminRole } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/auth-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +21,12 @@ function getParam(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function AuditPage({ searchParams }: AuditPageProps) {
+  await requireRole([
+    AdminRole.SUPER_ADMIN,
+    AdminRole.ADMIN,
+    AdminRole.SUPPORT,
+  ]);
+
   const actionParam = getParam(searchParams?.action)?.trim();
   const entityParam = getParam(searchParams?.entityType)?.trim();
 
@@ -138,7 +147,7 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
                     </div>
                   </td>
                   <td className="px-3 py-2 align-top text-[11px] text-slate-700">
-                    <pre className="max-w-xs whitespace-pre-wrap break-words rounded bg-slate-50 p-2 text-[10px] text-slate-700">
+                    <pre className="max-w-xs whitespace-pre-wrap wrap-break-word rounded bg-slate-50 p-2 text-[10px] text-slate-700">
                       {JSON.stringify(log.changes, null, 2)}
                     </pre>
                   </td>

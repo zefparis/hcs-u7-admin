@@ -4,10 +4,11 @@
  * Commercial license: contact@ia-solution.fr
  */
 
-import type { TenantStatus } from "@prisma/client";
 import Link from "next/link";
+import { AdminRole, type TenantStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/auth-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,12 @@ function statusClass(status: TenantStatus): string {
 }
 
 export default async function ClientsPage({ searchParams }: ClientsPageProps) {
+  await requireRole([
+    AdminRole.SUPER_ADMIN,
+    AdminRole.ADMIN,
+    AdminRole.SUPPORT,
+  ]);
+
   const pageParam = getParam(searchParams?.page);
   const qParam = getParam(searchParams?.q);
 

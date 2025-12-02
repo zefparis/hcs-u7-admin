@@ -9,8 +9,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { Moon, Sun } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useTheme } from "@/components/theme/ThemeProvider";
 
 interface AdminNavProps {
   user: {
@@ -20,18 +22,26 @@ interface AdminNavProps {
   };
 }
 
-const NAV_ITEMS = [
+const NAV_ITEMS: {
+  href: string;
+  label: string;
+  roles?: string[];
+}[] = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/clients", label: "Clients" },
   { href: "/api-keys", label: "API Keys" },
   { href: "/audit", label: "Audit" },
   { href: "/security", label: "Security" },
   { href: "/analytics", label: "Analytics" },
+  { href: "/usage", label: "Usage", roles: ["SUPER_ADMIN", "ADMIN", "SUPPORT"] },
+  { href: "/support", label: "Support", roles: ["SUPER_ADMIN", "SUPPORT"] },
   { href: "/billing", label: "Billing" },
+  { href: "/admin-users", label: "Admins", roles: ["SUPER_ADMIN"] },
 ];
 
 export function AdminNav({ user }: AdminNavProps) {
   const pathname = usePathname();
+  const { theme, toggleTheme } = useTheme();
 
   const initials =
     user.name
@@ -60,6 +70,10 @@ export function AdminNav({ user }: AdminNavProps) {
         {/* Nav items */}
         <div className="hidden items-center gap-1 md:flex">
           {NAV_ITEMS.map((item) => {
+            if (item.roles && !item.roles.includes(user.role)) {
+              return null;
+            }
+
             const isActive = pathname.startsWith(item.href);
             return (
               <Link key={item.href} href={item.href}>
@@ -77,6 +91,21 @@ export function AdminNav({ user }: AdminNavProps) {
 
         {/* User section */}
         <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            className="hidden h-8 w-8 items-center justify-center p-0 sm:inline-flex"
+            onClick={toggleTheme}
+            aria-label={
+              theme === "dark" ? "Passer en mode clair" : "Passer en mode sombre"
+            }
+          >
+            {theme === "dark" ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+          </Button>
           <div className="hidden text-right text-xs sm:block">
             <div className="font-medium">{user.name ?? "Admin"}</div>
             <div className="text-slate-500">{user.email}</div>

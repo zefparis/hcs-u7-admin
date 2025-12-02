@@ -5,6 +5,9 @@
  */
 
 import Link from "next/link";
+ 
+import { requireRole } from "@/lib/auth-helpers";
+import { AdminRole } from "@prisma/client";
 
 import { getDashboardStats } from "@/lib/dashboard-stats";
 import { UsageChart } from "@/components/dashboard/UsageChart";
@@ -12,6 +15,13 @@ import { UsageChart } from "@/components/dashboard/UsageChart";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  await requireRole([
+    AdminRole.SUPER_ADMIN,
+    AdminRole.ADMIN,
+    AdminRole.SUPPORT,
+    AdminRole.VIEWER,
+  ]);
+
   const stats = await getDashboardStats();
 
   return (

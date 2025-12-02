@@ -4,6 +4,7 @@
  * Commercial license: contact@ia-solution.fr
  */
 
+import type { TenantStatus } from "@prisma/client";
 import { AdminRole } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
@@ -11,9 +12,9 @@ import { requireRole } from "@/lib/auth-helpers";
 
 export const dynamic = "force-dynamic";
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 50;
 
-interface BillingPageProps {
+interface UsagePageProps {
   searchParams?: { [key: string]: string | string[] | undefined };
 }
 
@@ -22,64 +23,80 @@ function getParam(value: string | string[] | undefined): string | undefined {
   return value;
 }
 
-export default async function BillingPage({ searchParams }: BillingPageProps) {
+function formatStatus(status: TenantStatus): string {
+  switch (status) {
+    case "TRIAL":
+      return "Essai";
+    case "ACTIVE":
+      return "Actif";
+    case "SUSPENDED":
+      return "Suspendu";
+    case "CANCELLED":
+      return "Annulé";
+    case "CHURNED":
+      return "Perdu";
+    default:
+      return status;
+  }
+}
+
+export default async function UsagePage({ searchParams }: UsagePageProps) {
   await requireRole([
     AdminRole.SUPER_ADMIN,
     AdminRole.ADMIN,
-    AdminRole.VIEWER,
+    AdminRole.SUPPORT,
   ]);
 
-  const now = new Date();
-  const since90 = new Date(now.getTime());
-  since90.setDate(since90.getDate() - 90);
-
+  const pageParam = getParam(searchParams?.page);
   const tenantParam = getParam(searchParams?.tenantId);
-  const typeParam = getParam(searchParams?.type);
-  const paidParam = getParam(searchParams?.paid);
+  const endpointParam = getParam(searchParams?.endpoint);
+  const statusParam = getParam(searchParams?.statusCode);
   const fromParam = getParam(searchParams?.from);
   const toParam = getParam(searchParams?.to);
-  const pageParam = getParam(searchParams?.page);
 
   const page = pageParam ? Math.max(1, parseInt(pageParam, 10) || 1) : 1;
 
   const where: any = {};
 
-  const createdAt: { gte?: Date; lte?: Date } = {};
-  if (fromParam) {
-    const fromDate = new Date(fromParam);
-    if (!Number.isNaN(fromDate.getTime())) {
-      createdAt.gte = fromDate;
-    }
-  }
-  if (toParam) {
-    const toDate = new Date(toParam);
-    if (!Number.isNaN(toDate.getTime())) {
-      createdAt.lte = toDate;
-    }
-  }
-  if (!createdAt.gte && !createdAt.lte) {
-    createdAt.gte = since90;
-  }
-  if (createdAt.gte || createdAt.lte) {
-    where.createdAt = createdAt;
-  }
-
   if (tenantParam) {
     where.tenantId = tenantParam;
   }
 
-  if (typeParam) {
-    where.type = typeParam;
+  if (endpointParam?.trim()) {
+    where.endpoint = {
+      contains: endpointParam.trim(),
+      mode: "insensitive" as const,
+    };
   }
 
-  if (paidParam === "paid") {
-    where.stripePaid = true;
-  } else if (paidParam === "unpaid") {
-    where.stripePaid = false;
+  if (statusParam) {
+    const statusCode = parseInt(statusParam, 10);
+    if (!Number.isNaN(statusCode)) {
+      where.statusCode = statusCode;
+    }
   }
 
-  const [events, totals, total, tenants] = await Promise.all([
-    prisma.billingEvent.findMany({
+  if (fromParam || toParam) {
+    const createdAt: { gte?: Date; lte?: Date } = {};
+    if (fromParam) {
+      const fromDate = new Date(fromParam);
+      if (!Number.isNaN(fromDate.getTime())) {
+        createdAt.gte = fromDate;
+      }
+    }
+    if (toParam) {
+      const toDate = new Date(toParam);
+      if (!Number.isNaN(toDate.getTime())) {
+        createdAt.lte = toDate;
+      }
+    }
+    if (createdAt.gte || createdAt.lte) {
+      where.createdAt = createdAt;
+    }
+  }
+
+  const [logs, total, tenants] = await Promise.all([
+    prisma.usageLog.findMany({
       where,
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * PAGE_SIZE,
@@ -90,39 +107,36 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             id: true,
             fullName: true,
             email: true,
-            plan: true,
+            status: true,
           },
         },
       },
     }),
-    prisma.billingEvent.groupBy({
-      by: ["type"],
-      _sum: { amount: true },
-      where,
-    }),
-    prisma.billingEvent.count({ where }),
+    prisma.usageLog.count({ where }),
     prisma.tenant.findMany({
       orderBy: { fullName: "asc" },
       select: {
         id: true,
         fullName: true,
         email: true,
+        status: true,
       },
     }),
   ]);
 
-  const totalRevenue = totals.reduce((s, e) => s + (e._sum.amount ?? 0), 0);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Billing</h1>
+        <h1 className="text-3xl font-bold">Usage API</h1>
         <p className="text-slate-600">
-          Vue d'ensemble des événements de facturation sur les 90 derniers jours.
+          Liste détaillée des appels API HCS-U7 avec filtres par client, endpoint,
+          code HTTP et période.
         </p>
       </div>
 
+      {/* Filtres */}
       <form method="get" className="grid gap-3 md:grid-cols-5 text-sm">
         <div className="space-y-1">
           <label className="block text-xs font-medium text-slate-600">
@@ -141,46 +155,39 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             ))}
           </select>
           <p className="text-[10px] text-slate-500">
-            Filtre les événements pour un client précis. Laisser sur "Tous" pour tous les clients.
+            Laisser sur "Tous" pour voir les appels de l'ensemble des clients.
           </p>
         </div>
 
         <div className="space-y-1">
           <label className="block text-xs font-medium text-slate-600">
-            Type d'événement
+            Endpoint
           </label>
-          <select
-            name="type"
-            defaultValue={typeParam ?? ""}
+          <input
+            type="text"
+            name="endpoint"
+            defaultValue={endpointParam ?? ""}
+            placeholder="/v1/verify, /v1/generate..."
             className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-          >
-            <option value="">Tous</option>
-            {totals.map((t) => (
-              <option key={t.type} value={t.type}>
-                {t.type}
-              </option>
-            ))}
-          </select>
+          />
           <p className="text-[10px] text-slate-500">
-            Filtre par type d'événement de facturation (subscription, overage, etc.).
+            Filtre par sous-chaîne de chemin API (recherche insensible à la casse).
           </p>
         </div>
 
         <div className="space-y-1">
           <label className="block text-xs font-medium text-slate-600">
-            Paiement
+            Status HTTP
           </label>
-          <select
-            name="paid"
-            defaultValue={paidParam ?? ""}
+          <input
+            type="number"
+            name="statusCode"
+            defaultValue={statusParam ?? ""}
+            placeholder="200, 401, 429..."
             className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-          >
-            <option value="">Tous</option>
-            <option value="paid">Payés</option>
-            <option value="unpaid">Non payés</option>
-          </select>
+          />
           <p className="text-[10px] text-slate-500">
-            Filtre par statut de paiement Stripe (payé / non payé).
+            Filtre par code HTTP exact (laisser vide pour tous les codes).
           </p>
         </div>
 
@@ -195,11 +202,11 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
           />
           <p className="text-[10px] text-slate-500">
-            Date de début (incluse). Si vide, la période commence 90 jours avant aujourd'hui.
+            Date de début (incluse). Laisser vide pour ne pas limiter.
           </p>
         </div>
 
-        <div className="spacey-1">
+        <div className="space-y-1">
           <label className="block text-xs font-medium text-slate-600">
             Au
           </label>
@@ -210,14 +217,11 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
           />
           <p className="text-[10px] text-slate-500">
-            Date de fin (incluse). Laisser vide pour utiliser la date du jour.
+            Date de fin (incluse). Laisser vide pour ne pas limiter.
           </p>
         </div>
 
-        <div className="md:col-span-5 flex items-end justify-between gap-2">
-          <p className="text-[10px] text-slate-500">
-            Par défaut, la période affichée couvre les 90 derniers jours.
-          </p>
+        <div className="md:col-span-5 flex items-end justify-end gap-2">
           <button
             type="submit"
             className="inline-flex h-9 items-center rounded-md border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 shadow-sm hover:bg-slate-50"
@@ -227,86 +231,77 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         </div>
       </form>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Revenu total (90j)
-          </div>
-          <div className="mt-2 text-2xl font-bold">
-            {totalRevenue.toFixed(2)}
-            <span className="ml-1 text-sm font-normal text-slate-500">EUR</span>
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Événements de facturation
-          </div>
-          <div className="mt-2 text-2xl font-bold">{total}</div>
-        </div>
-
-        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Types d'événements
-          </div>
-          <div className="mt-2 text-2xl font-bold">{totals.length}</div>
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Détail des événements (200 derniers)
-        </h2>
-
-        {events.length === 0 ? (
-          <p className="text-xs text-slate-500">
-            Aucun événement de facturation enregistré sur les 90 derniers jours.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse text-xs">
-              <thead className="border-b border-slate-200 bg-slate-50 text-left font-semibold uppercase tracking-wide text-slate-600">
-                <tr>
-                  <th className="px-3 py-2">Date</th>
-                  <th className="px-3 py-2">Client</th>
-                  <th className="px-3 py-2">Type</th>
-                  <th className="px-3 py-2">Montant</th>
-                  <th className="px-3 py-2">Période</th>
+      {/* Tableau des logs */}
+      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+        <table className="min-w-full border-collapse text-xs">
+          <thead className="border-b border-slate-200 bg-slate-50 text-left font-semibold uppercase tracking-wide text-slate-600">
+            <tr>
+              <th className="px-3 py-2">Date</th>
+              <th className="px-3 py-2">Client</th>
+              <th className="px-3 py-2">Endpoint</th>
+              <th className="px-3 py-2">Status</th>
+              <th className="px-3 py-2">Temps (ms)</th>
+              <th className="px-3 py-2">IP</th>
+              <th className="px-3 py-2">Erreur</th>
+            </tr>
+          </thead>
+          <tbody>
+            {logs.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={7}
+                  className="px-3 py-8 text-center text-xs text-slate-500"
+                >
+                  Aucun appel ne correspond aux filtres.
+                </td>
+              </tr>
+            ) : (
+              logs.map((log) => (
+                <tr key={log.id} className="border-t border-slate-100">
+                  <td className="px-3 py-2 align-top text-[11px] text-slate-500">
+                    {new Date(log.createdAt).toLocaleString("fr-FR")}
+                  </td>
+                  <td className="px-3 py-2 align-top text-[11px] text-slate-700">
+                    <div>
+                      <a
+                        href={`/clients/${log.tenant.id}`}
+                        className="text-slate-800 hover:underline"
+                      >
+                        {log.tenant.fullName}
+                      </a>
+                    </div>
+                    <div className="text-[10px] text-slate-400">
+                      {log.tenant.email}
+                    </div>
+                    <div className="text-[10px] text-slate-400">
+                      {formatStatus(log.tenant.status as TenantStatus)}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 align-top text-[11px] text-slate-700">
+                    {log.endpoint} ({log.method})
+                  </td>
+                  <td className="px-3 py-2 align-top text-[11px] text-slate-700">
+                    {log.statusCode}
+                  </td>
+                  <td className="px-3 py-2 align-top text-[11px] text-slate-700">
+                    {log.responseTime ?? "-"}
+                  </td>
+                  <td className="px-3 py-2 align-top text-[11px] text-slate-700">
+                    {log.ipAddress ?? "-"}
+                  </td>
+                  <td className="px-3 py-2 align-top text-[11px] text-slate-700">
+                    <div className="max-w-xs whitespace-pre-wrap wrap-break-word">
+                      {log.errorMessage ?? "-"}
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {events.map((event) => (
-                  <tr key={event.id} className="border-t border-slate-100">
-                    <td className="px-3 py-2 align-top text-[11px] text-slate-500">
-                      {new Date(event.createdAt).toLocaleString("fr-FR")}
-                    </td>
-                    <td className="px-3 py-2 align-top text-[11px] text-slate-700">
-                      <div>{event.tenant.fullName}</div>
-                      <div className="text-[10px] text-slate-400">
-                        {event.tenant.email}
-                      </div>
-                      <div className="text-[10px] text-slate-400">
-                        Plan {event.tenant.plan}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 align-top text-[11px] text-slate-700">
-                      {event.type}
-                    </td>
-                    <td className="px-3 py-2 align-top text-[11px] text-slate-700">
-                      {event.amount.toFixed(2)} {event.currency}
-                    </td>
-                    <td className="px-3 py-2 align-top text-[11px] text-slate-500">
-                      {new Date(event.periodStart).toLocaleDateString("fr-FR")} {"→"}{" "}
-                      {new Date(event.periodEnd).toLocaleDateString("fr-FR")}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
+      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-sm text-slate-600">
           <div>
@@ -317,8 +312,8 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               (() => {
                 const params = new URLSearchParams();
                 if (tenantParam) params.set("tenantId", tenantParam);
-                if (typeParam) params.set("type", typeParam);
-                if (paidParam) params.set("paid", paidParam);
+                if (endpointParam) params.set("endpoint", endpointParam);
+                if (statusParam) params.set("statusCode", statusParam);
                 if (fromParam) params.set("from", fromParam);
                 if (toParam) params.set("to", toParam);
                 if (page - 1 > 1) params.set("page", String(page - 1));
@@ -342,8 +337,8 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               (() => {
                 const params = new URLSearchParams();
                 if (tenantParam) params.set("tenantId", tenantParam);
-                if (typeParam) params.set("type", typeParam);
-                if (paidParam) params.set("paid", paidParam);
+                if (endpointParam) params.set("endpoint", endpointParam);
+                if (statusParam) params.set("statusCode", statusParam);
                 if (fromParam) params.set("from", fromParam);
                 if (toParam) params.set("to", toParam);
                 params.set("page", String(page + 1));

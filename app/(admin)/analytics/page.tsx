@@ -4,11 +4,21 @@
  * Commercial license: contact@ia-solution.fr
  */
 
+import { AdminRole } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/auth-helpers";
 
 export const dynamic = "force-dynamic";
 
 export default async function AnalyticsPage() {
+  await requireRole([
+    AdminRole.SUPER_ADMIN,
+    AdminRole.ADMIN,
+    AdminRole.SUPPORT,
+    AdminRole.VIEWER,
+  ]);
+
   const now = new Date();
   const since30 = new Date(now.getTime());
   since30.setDate(since30.getDate() - 30);

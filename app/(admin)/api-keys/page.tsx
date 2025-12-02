@@ -4,13 +4,18 @@
  * Commercial license: contact@ia-solution.fr
  */
 
+import { AdminRole } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/auth-helpers";
 import { ApiKeyGenerator } from "@/components/api-keys/ApiKeyGenerator";
 import { ApiKeyToggleButton } from "@/components/api-keys/ApiKeyToggleButton";
 
 export const dynamic = "force-dynamic";
 
 export default async function ApiKeysPage() {
+  await requireRole([AdminRole.SUPER_ADMIN, AdminRole.ADMIN]);
+
   const [apiKeys, tenants] = await Promise.all([
     prisma.apiKey.findMany({
       include: {
@@ -36,11 +41,19 @@ export default async function ApiKeysPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">API Keys</h1>
-        <p className="text-slate-600">
-          Gestion centralisée des clés API HCS-U7 pour tous les clients.
-        </p>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">API Keys</h1>
+          <p className="text-slate-600">
+            Gestion centralisée des clés API HCS-U7 pour tous les clients.
+          </p>
+        </div>
+        <a
+          href="/integration"
+          className="inline-flex h-9 items-center rounded-md border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 shadow-sm hover:bg-slate-50"
+        >
+          Guides d'intégration
+        </a>
       </div>
 
       <ApiKeyGenerator tenants={tenants} />

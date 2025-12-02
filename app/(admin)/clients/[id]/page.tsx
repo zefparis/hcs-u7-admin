@@ -5,9 +5,11 @@
  */
 
 import { notFound } from "next/navigation";
-import type { TenantStatus, Environment, BillingEventType } from "@prisma/client";
+import { AdminRole, type TenantStatus, type Environment, type BillingEventType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/auth-helpers";
+import { TenantEditForm } from "@/components/admin/TenantEditForm";
 
 export const dynamic = "force-dynamic";
 
@@ -87,6 +89,12 @@ function formatBillingType(type: BillingEventType): string {
 }
 
 export default async function ClientDetailPage({ params }: ClientDetailPageProps) {
+  const session = await requireRole([
+    AdminRole.SUPER_ADMIN,
+    AdminRole.ADMIN,
+    AdminRole.SUPPORT,
+  ]);
+
   const tenant = await prisma.tenant.findUnique({
     where: { id: params.id },
     include: {
@@ -105,6 +113,10 @@ export default async function ClientDetailPage({ params }: ClientDetailPageProps
     (tenant.currentUsage / tenant.monthlyQuota) * 100 || 0
   ).toFixed(1);
 
+  const canEditTenant =
+    (session.user as any).role === AdminRole.SUPER_ADMIN ||
+    (session.user as any).role === AdminRole.ADMIN;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
@@ -113,6 +125,26 @@ export default async function ClientDetailPage({ params }: ClientDetailPageProps
           <p className="text-slate-600">
             Détail du tenant HCS-U7, usage et événements de facturation.
           </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <a
+            href={`/usage?tenantId=${tenant.id}`}
+            className="inline-flex h-8 items-center rounded-md border border-slate-200 bg-white px-3 font-medium text-slate-800 shadow-sm hover:bg-slate-50"
+          >
+            Voir l'usage
+          </a>
+          <a
+            href={`/billing?tenantId=${tenant.id}`}
+            className="inline-flex h-8 items-center rounded-md border border-slate-200 bg-white px-3 font-medium text-slate-800 shadow-sm hover:bg-slate-50"
+          >
+            Voir la facturation
+          </a>
+          <a
+            href="/audit?entityType=Tenant"
+            className="inline-flex h-8 items-center rounded-md border border-slate-100 bg-slate-50 px-3 font-medium text-slate-600 hover:bg-slate-100"
+          >
+            Logs d'audit (Tenant)
+          </a>
         </div>
       </div>
 
@@ -362,6 +394,27 @@ export default async function ClientDetailPage({ params }: ClientDetailPageProps
           </div>
         )}
       </div>
+
+      {canEditTenant && (
+        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Paramètres du compte
+          </h2>
+          <TenantEditForm
+            id={tenant.id}
+            plan={tenant.plan as any}
+            status={tenant.status as any}
+            monthlyQuota={tenant.monthlyQuota}
+            internalNotes={tenant.internalNotes}
+            trialEndsAt={tenant.trialEndsAt ? tenant.trialEndsAt.toISOString() : null}
+            subscriptionEndsAt={
+              tenant.subscriptionEndsAt
+                ? tenant.subscriptionEndsAt.toISOString()
+                : null
+            }
+          />
+        </div>
+      )}
     </div>
   );
 }

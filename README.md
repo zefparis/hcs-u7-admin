@@ -11,10 +11,14 @@ L’application est un dashboard interne réservé aux administrateurs HCS-U7.
 - **Dashboard global** : synthèse clients, trafic API (7 jours), revenu (30 jours), clients à risque.
 - **Clients** : listing paginé, recherche, statut (TRIAL/ACTIVE/…), quotas et usage, fiche détaillée par client.
 - **API Keys** : génération, affichage masqué, activation/désactivation, association à un tenant et à un environnement (dev/staging/prod).
+- **Usage détaillé** : page dédiée `/usage` listant les appels API avec filtres et pagination.
 - **Analytics** : répartition du trafic par endpoint et par code HTTP, derniers appels.
 - **Security & Monitoring** : erreurs, IP/Endpoints problématiques, logs suspects sur 24h.
 - **Billing** : événements de facturation (90 jours), total de revenu, détails par client.
 - **Audit** : journal des actions admin (génération/révocation clés, etc.).
+- **Support multi-tenant** : vue `/support` pour le support client (statut, plan, facturation et erreurs récentes).
+- **Admins internes** : gestion des comptes `AdminUser` et de leurs rôles dans `/admin-users`.
+- **Guides d'intégration** : page `/integration` avec snippets backend-only (curl, Node, Python, Go, PHP, Java) sans secrets.
 
 ---
 
@@ -26,6 +30,15 @@ L’application est un dashboard interne réservé aux administrateurs HCS-U7.
 - **Auth** : [NextAuth 5 (credentials)](https://authjs.dev/) avec JWT
 - **ORM / DB** : [Prisma](https://www.prisma.io/) + PostgreSQL
 - **Validation** : [Zod](https://zod.dev/)
+
+---
+
+## Périmètre & non-objectifs
+
+- Ce dépôt contient uniquement le **dashboard d'administration SaaS HCS-U7** (UI, routes Next.js, Prisma, NextAuth, pages métiers).
+- Il **ne contient pas** la logique cryptographique HCS-U7, ni les algorithmes internes de génération / vérification des codes.
+- Aucun secret de production HCS-U7 ne doit être stocké ici ; seuls des placeholders et variables d'environnement sont utilisés.
+- L'API publique HCS-U7 est supposée être exposée par un **backend séparé**, auquel ce dashboard se connecte via la base de données et des clés API hashées (pas de stockage de clé en clair côté admin).
 
 ---
 
@@ -46,10 +59,14 @@ L’application est un dashboard interne réservé aux administrateurs HCS-U7.
 - `/clients` : liste des tenants, recherche et pagination.
 - `/clients/[id]` : fiche client (infos, clés API, logs d’usage, événements de facturation).
 - `/api-keys` : génération et gestion des clés API.
+- `/usage` : liste détaillée des appels API (filtres, pagination, IP, erreurs).
 - `/analytics` : analytics détaillées sur 30 jours (endpoints, status HTTP, derniers appels).
 - `/security` : monitoring sécurité sur 24h (erreurs, IP/endpoints problématiques, événements suspects).
 - `/billing` : événements de facturation sur 90 jours (montants, périodes, plans).
 - `/audit` : logs d’audit des actions admin.
+- `/support` : vue multi-tenant pour le support (statut, plan, usage, billing et erreurs récentes).
+- `/admin-users` : gestion des comptes administrateurs internes et de leurs rôles.
+- `/integration` : guides d'intégration API HCS-U7 (snippets backend-only, sans secrets).
 
 ### Modèles Prisma (extrait)
 
@@ -240,7 +257,46 @@ Scripts Prisma :
 - Filtres par action et type d’entité.
 - Visualisation des détails de chaque log (admin, entité, changements, IP, UA).
 
+### Admins (`/admin-users`)
+
+- Liste des comptes `AdminUser` internes avec rôle (`SUPER_ADMIN`, `ADMIN`, `SUPPORT`, `VIEWER`).
+- Création de nouveaux admins avec génération d'un mot de passe (affiché une seule fois après création).
+- Mise à jour du rôle d'un admin.
+- Suppression d'un admin (avec protection contre la suppression de son propre compte).
+
+### Usage détaillé (`/usage`)
+
+- Liste détaillée des appels API (`UsageLog`) avec filtres par tenant, endpoint, code HTTP et période.
+- Affichage de l'IP, du message d'erreur éventuel, du temps de réponse.
+- Pagination serveur pour naviguer dans les logs volumineux.
+
+### Support multi-tenant (`/support`)
+
+- Vue consolidée par client : plan, statut, quota, usage et dates d'essai/abonnement.
+- Dernier événement de facturation et dernière erreur API par tenant.
+- Filtres par statut, plan et recherche texte (nom, email, entreprise) pour aider le support.
+
+### Guides d'intégration (`/integration`)
+
+- Page documentaire statique avec exemples d'appels API HCS-U7.
+- Snippets pour plusieurs stacks backend (curl, Node/TS, Python, Go, PHP, Java).
+- Utilise uniquement des placeholders (`YOUR_HCS_U7_API_KEY`, `HCS_U7_API_KEY`, etc.) et un domaine d'exemple.
+
 ---
+
+## RBAC & rôles admin
+
+Les comptes admin sont stockés dans le modèle Prisma `AdminUser` avec un rôle `AdminRole` :
+
+- `SUPER_ADMIN` : accès complet (gestion des `AdminUser`, des tenants, des clés API, de toutes les vues internes).
+- `ADMIN` : gestion des clients et des clés API, accès aux pages d'usage, billing, analytics et audit.
+- `SUPPORT` : accès en lecture aux vues de support multi-tenant (`/support`), usage (`/usage`), sécurité (`/security`) et audit (`/audit`).
+- `VIEWER` : accès lecture restreint (dashboard, analytics, billing) pour un usage type investisseurs / reporting.
+
+L'enforcement RBAC est centralisé via :
+
+- `lib/auth.ts` : enrichissement du token/session NextAuth avec le rôle `AdminRole`.
+- `lib/auth-helpers.ts` : helpers `requireAuth` et `requireRole` utilisés dans les pages `(admin)`.
 
 ## Sécurité
 
@@ -248,14 +304,14 @@ Scripts Prisma :
 - Mots de passe stockés en base sous forme de hash `bcrypt`.
 - Stratégie de session **JWT**.
 - Accès au dashboard protégé par `requireAuth` / `requireRole`.
-- Logs d’usage (`UsageLog`) et d’audit (`AuditLog`) pour la traçabilité.
-- Variables sensibles (DB, secrets, clés API email) chargées via l’environnement et validées par Zod.
+- Logs d'usage (`UsageLog`) et d'audit (`AuditLog`) pour la traçabilité.
+- Variables sensibles (DB, secrets, clés API email) chargées via l'environnement et validées par Zod.
 
 En production, il est recommandé de :
 
 - Utiliser un `NEXTAUTH_SECRET` fort et unique.
 - Désactiver ou adapter les données de démo du seed.
-- Restreindre l’accès au dashboard admin (VPN, IP allowlist, etc. selon l’infra).
+- Restreindre l'accès au dashboard admin (VPN, IP allowlist, etc. selon l'infra).
 
 ---
 

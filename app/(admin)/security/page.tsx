@@ -4,11 +4,20 @@
  * Commercial license: contact@ia-solution.fr
  */
 
+import { AdminRole } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/auth-helpers";
 
 export const dynamic = "force-dynamic";
 
 export default async function SecurityPage() {
+  await requireRole([
+    AdminRole.SUPER_ADMIN,
+    AdminRole.ADMIN,
+    AdminRole.SUPPORT,
+  ]);
+
   const now = new Date();
   const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
@@ -230,7 +239,7 @@ export default async function SecurityPage() {
                       </div>
                     </td>
                     <td className="px-3 py-2 align-top text-[11px] text-slate-700">
-                      <div className="max-w-xs whitespace-pre-wrap break-words">
+                      <div className="max-w-xs whitespace-pre-wrap wrap-break-word">
                         {log.errorMessage ?? "-"}
                       </div>
                     </td>
