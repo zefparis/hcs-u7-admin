@@ -11,7 +11,6 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { sendBrevoEmail } from "@/lib/brevo";
-import { env } from "@/lib/env";
 
 function getClientInfo(request: Request) {
   const ipAddress =
@@ -50,16 +49,6 @@ export async function POST(request: Request) {
   }
 
   const email = parsed.data.email.toLowerCase().trim();
-
-  if (!env.BREVO_API_KEY || !env.BREVO_SENDER_EMAIL) {
-    return NextResponse.json(
-      {
-        error:
-          "Password reset is not configured. Please contact an administrator.",
-      },
-      { status: 503 }
-    );
-  }
 
   const admin = await prisma.adminUser.findUnique({
     where: { email },
@@ -109,14 +98,14 @@ export async function POST(request: Request) {
     if (process.env.NODE_ENV !== "production") {
       return NextResponse.json({
         success: true,
-        brevoStatus: mailResult.status,
-        brevoOk: mailResult.ok,
-        brevoError: mailResult.errorBody,
+        emailStatus: mailResult.status,
+        emailOk: mailResult.ok,
+        emailError: mailResult.errorBody,
       });
     }
   } catch (error) {
     // eslint-disable-next-line no-console
-    console.error("Failed to send Brevo reset email:", error);
+    console.error("Failed to send reset email:", error);
   }
 
   return NextResponse.json({ success: true });

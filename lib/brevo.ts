@@ -5,67 +5,70 @@
  */
 
 import { env } from "@/lib/env";
+import { Resend } from "resend";
 
-interface BrevoEmailRecipient {
+interface EmailRecipient {
   email: string;
   name?: string;
 }
 
-interface SendBrevoEmailOptions {
-  to: BrevoEmailRecipient[];
+interface SendEmailOptions {
+  to: EmailRecipient[];
   subject: string;
   htmlContent?: string;
   textContent?: string;
 }
 
-interface BrevoSendResult {
+interface EmailSendResult {
   ok: boolean;
   status: number;
   errorBody?: string;
 }
 
+const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
+
 export async function sendBrevoEmail(
-  options: SendBrevoEmailOptions,
-): Promise<BrevoSendResult> {
-  if (!env.BREVO_API_KEY || !env.BREVO_SENDER_EMAIL) {
+  options: SendEmailOptions,
+): Promise<EmailSendResult> {
+  if (!resend) {
     // eslint-disable-next-line no-console
-    console.warn("Brevo is not configured. Skipping email send.");
-    return { ok: false, status: 0, errorBody: "Brevo not configured" };
+    console.warn("Resend is not configured. Skipping email send.");
+    return { ok: false, status: 0, errorBody: "Resend not configured" };
   }
 
-  const senderName = env.BREVO_SENDER_NAME || "HCS-U7 Admin";
+  const fromEmail = "no-reply@hcs-u7.info";
+  const fromName = "HCS-U7 Admin";
+  const from = `${fromName} <${fromEmail}>`;
 
-  const payload = {
-    sender: {
-      email: env.BREVO_SENDER_EMAIL,
-      name: senderName,
-    },
-    to: options.to,
-    subject: options.subject,
-    htmlContent: options.htmlContent,
-    textContent: options.textContent,
-  };
+  try {
+    const payload: any = {
+      from,
+      to: options.to.map((recipient) => recipient.email),
+      subject: options.subject,
+      html: options.htmlContent,
+      text: options.textContent,
+    };
 
-  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": env.BREVO_API_KEY,
-      accept: "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+    const { data, error } = await resend.emails.send(payload);
 
-  // eslint-disable-next-line no-console
-  console.log("Brevo email send status:", res.status);
-
-  let errorBody: string | undefined;
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
     // eslint-disable-next-line no-console
-    console.error("Brevo email send failed:", res.status, body);
-    errorBody = body;
-  }
+    console.log("Resend email send result:", data);
 
-  return { ok: res.ok, status: res.status, errorBody };
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error("Resend email send failed:", error);
+      return { ok: false, status: 500, errorBody: String(error) };
+    }
+
+    return { ok: true, status: 200 };
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("Resend email send failed:", error);
+    return {
+      ok: false,
+      status: 500,
+      errorBody:
+        error instanceof Error ? error.message : String(error),
+    };
+  }
 }

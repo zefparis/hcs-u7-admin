@@ -83,9 +83,9 @@ function LoginPageInner() {
 
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
-        brevoStatus?: number;
-        brevoOk?: boolean;
-        brevoError?: string;
+        emailStatus?: number;
+        emailOk?: boolean;
+        emailError?: string;
       };
 
       if (!res.ok) {
@@ -97,11 +97,11 @@ function LoginPageInner() {
         return;
       }
 
-      if (typeof data.brevoOk === "boolean" && !data.brevoOk) {
+      if (typeof data.emailOk === "boolean" && !data.emailOk) {
         setError(
-          `Envoi de l'email Brevo échoué (status ${
-            data.brevoStatus ?? "inconnu"
-          }). Détail: ${data.brevoError ?? "voir logs serveur"}.`,
+          `Envoi de l'email de réinitialisation échoué (status ${
+            data.emailStatus ?? "inconnu"
+          }). Détail: ${data.emailError ?? "voir logs serveur"}.`,
         );
         return;
       }
