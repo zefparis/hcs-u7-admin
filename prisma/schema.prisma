@@ -6,47 +6,47 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ========================================
 // TENANTS (Clients HCS-U7)
 // ========================================
 model Tenant {
-  id            String   @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Contact info
-  email         String   @unique
-  fullName      String
-  company       String?
-  website       String?
-  
+  email    String  @unique
+  fullName String
+  company  String?
+  website  String?
+
   // Plan & billing
-  plan          Plan     @default(FREE)
-  status        TenantStatus @default(TRIAL)
-  
+  plan   Plan         @default(FREE)
+  status TenantStatus @default(TRIAL)
+
   // Quotas
-  monthlyQuota  Int      // Ex: 5000 for Starter
-  currentUsage  Int      @default(0)
-  
+  monthlyQuota Int // Ex: 5000 for Starter
+  currentUsage Int @default(0)
+
   // Dates
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  trialEndsAt   DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  trialEndsAt        DateTime?
   subscriptionEndsAt DateTime?
-  
+
   // Relations
   apiKeys       ApiKey[]
   usageLogs     UsageLog[]
   billingEvents BillingEvent[]
-  
+
   // Metadata (use case, estimated volume, source, etc.)
-  metadata      Json?
-  
+  metadata Json?
+
   // Internal notes (admin only)
   internalNotes String?
-  
+
   @@index([email])
   @@index([status])
   @@index([plan])
@@ -62,46 +62,46 @@ enum Plan {
 }
 
 enum TenantStatus {
-  TRIAL        // Active trial period
-  ACTIVE       // Active paid subscription
-  SUSPENDED    // Quota exceeded or payment failed
-  CANCELLED    // Customer cancelled
-  CHURNED      // Inactive for >60 days
+  TRIAL // Active trial period
+  ACTIVE // Active paid subscription
+  SUSPENDED // Quota exceeded or payment failed
+  CANCELLED // Customer cancelled
+  CHURNED // Inactive for >60 days
 }
 
 // ========================================
 // API KEYS
 // ========================================
 model ApiKey {
-  id            String   @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Key (hash only, never plain text)
-  keyHash       String   @unique
-  keyPrefix     String   // "hcs_sk_live_" or "hcs_sk_test_"
-  lastFourChars String   // For masked display
-  
+  keyHash       String @unique
+  keyPrefix     String // "hcs_sk_live_" or "hcs_sk_test_"
+  lastFourChars String // For masked display
+
   // Metadata
-  name          String?  // "Production API", "Staging", etc.
-  environment   Environment @default(PRODUCTION)
-  
+  name        String? // "Production API", "Staging", etc.
+  environment Environment @default(PRODUCTION)
+
   // Relations
-  tenantId      String
-  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   // Status
-  isActive      Boolean  @default(true)
-  
+  isActive Boolean @default(true)
+
   // Dates
-  createdAt     DateTime @default(now())
-  lastUsedAt    DateTime?
-  expiresAt     DateTime? // For temporary keys
-  
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  expiresAt  DateTime? // For temporary keys
+
   // Permissions (for future granularity)
-  scopes        String[] // ["verify", "generate", "auth", "admin"]
-  
+  scopes String[] // ["verify", "generate", "auth", "admin"]
+
   // Rate limiting (future)
-  rateLimit     Int?     // Requests per minute
-  
+  rateLimit Int? // Requests per minute
+
   @@index([tenantId])
   @@index([keyHash])
   @@index([environment])
@@ -118,30 +118,30 @@ enum Environment {
 // USAGE LOGS (API Consumption)
 // ========================================
 model UsageLog {
-  id            String   @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Relations
-  tenantId      String
-  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   // Request details
-  endpoint      String   // "/v1/verify", "/v1/generate"
-  method        String   // "POST", "GET"
-  statusCode    Int      // 200, 401, 429, 500
-  
+  endpoint   String // "/v1/verify", "/v1/generate"
+  method     String // "POST", "GET"
+  statusCode Int // 200, 401, 429, 500
+
   // Billing
-  billable      Boolean  @default(true)
-  cost          Float?   // Cost of this request (ex: 0.004€)
-  
+  billable Boolean @default(true)
+  cost     Float? // Cost of this request (ex: 0.004€)
+
   // Metadata
-  ipAddress     String?
-  userAgent     String?
-  responseTime  Int?     // Response time in ms
-  errorMessage  String?  // If error
-  
+  ipAddress    String?
+  userAgent    String?
+  responseTime Int? // Response time in ms
+  errorMessage String? // If error
+
   // Timestamp
-  createdAt     DateTime @default(now())
-  
+  createdAt DateTime @default(now())
+
   @@index([tenantId, createdAt])
   @@index([endpoint])
   @@index([statusCode])
@@ -152,37 +152,37 @@ model UsageLog {
 // BILLING EVENTS (Invoicing)
 // ========================================
 model BillingEvent {
-  id            String   @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Relations
-  tenantId      String
-  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   // Event type
-  type          BillingEventType
-  
+  type BillingEventType
+
   // Amounts
-  amount        Float    // In euros
-  currency      String   @default("EUR")
-  
+  amount   Float // In euros
+  currency String @default("EUR")
+
   // Period
-  periodStart   DateTime
-  periodEnd     DateTime
-  
+  periodStart DateTime
+  periodEnd   DateTime
+
   // Stripe (if integrated later)
-  stripeInvoiceId String?
-  stripePaid      Boolean @default(false)
+  stripeInvoiceId       String?
+  stripePaid            Boolean @default(false)
   stripePaymentIntentId String?
-  
+
   // Metadata
-  description   String?
-  metadata      Json?    // Details (number of verifications, overage, etc.)
-  
+  description String?
+  metadata    Json? // Details (number of verifications, overage, etc.)
+
   // Dates
-  createdAt     DateTime @default(now())
-  paidAt        DateTime?
-  dueDate       DateTime?
-  
+  createdAt DateTime  @default(now())
+  paidAt    DateTime?
+  dueDate   DateTime?
+
   @@index([tenantId, createdAt])
   @@index([type])
   @@index([stripePaid])
@@ -205,23 +205,25 @@ enum BillingEventType {
 // ADMIN USERS (Dashboard access)
 // ========================================
 model AdminUser {
-  id            String   @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Auth
-  email         String   @unique
-  passwordHash  String
-  
+  email        String @unique
+  passwordHash String
+
   // Permissions
-  role          AdminRole @default(VIEWER)
-  
+  role AdminRole @default(VIEWER)
+
   // Profile
-  fullName      String?
-  avatarUrl     String?
-  
+  fullName  String?
+  avatarUrl String?
+
+  passwordResetTokens PasswordResetToken[]
+
   // Dates
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  lastLoginAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lastLoginAt DateTime?
 
   @@index([email])
   @@index([role])
@@ -229,10 +231,10 @@ model AdminUser {
 }
 
 model PasswordResetToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   adminId   String
   admin     AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
-  token     String   @unique
+  token     String    @unique
   expiresAt DateTime
   usedAt    DateTime?
 
@@ -242,35 +244,35 @@ model PasswordResetToken {
 }
 
 enum AdminRole {
-  SUPER_ADMIN  // Everything (Benjamin)
-  ADMIN        // Client + key management (future employee)
-  SUPPORT      // Read + client notes (future support)
-  VIEWER       // Read-only analytics (investors)
+  SUPER_ADMIN // Everything (Benjamin)
+  ADMIN // Client + key management (future employee)
+  SUPPORT // Read + client notes (future support)
+  VIEWER // Read-only analytics (investors)
 }
 
 // ========================================
 // AUDIT LOGS (Admin action traceability)
 // ========================================
 model AuditLog {
-  id            String   @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Who
-  adminUserId   String
-  adminEmail    String
-  
+  adminUserId String
+  adminEmail  String
+
   // What
-  action        String   // "CLIENT_CREATED", "API_KEY_GENERATED", "PLAN_CHANGED"
-  entityType    String   // "Tenant", "ApiKey", "BillingEvent"
-  entityId      String   // ID of modified entity
-  
+  action     String // "CLIENT_CREATED", "API_KEY_GENERATED", "PLAN_CHANGED"
+  entityType String // "Tenant", "ApiKey", "BillingEvent"
+  entityId   String // ID of modified entity
+
   // Details
-  changes       Json?    // Before/after
-  ipAddress     String?
-  userAgent     String?
-  
+  changes   Json? // Before/after
+  ipAddress String?
+  userAgent String?
+
   // When
-  createdAt     DateTime @default(now())
-  
+  createdAt DateTime @default(now())
+
   @@index([adminUserId, createdAt])
   @@index([action])
   @@index([entityType, entityId])

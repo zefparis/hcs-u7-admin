@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { createHash } from "crypto";
 
 import { prisma } from "@/lib/prisma";
 
@@ -23,6 +24,10 @@ const confirmSchema = z.object({
   newPassword: z.string().min(8),
 });
 
+function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
 export async function POST(request: Request) {
   let body: unknown;
   try {
@@ -39,8 +44,10 @@ export async function POST(request: Request) {
   const { token, newPassword } = parsed.data;
 
   try {
+    const tokenHash = hashToken(token);
+
     const resetToken = await prisma.passwordResetToken.findUnique({
-      where: { token },
+      where: { token: tokenHash },
     });
 
     if (!resetToken) {
@@ -49,6 +56,15 @@ export async function POST(request: Request) {
 
     const now = new Date();
     if (resetToken.expiresAt < now || resetToken.usedAt) {
+      return NextResponse.json({ error: "Invalid or expired token" }, { status: 400 });
+    }
+
+    const admin = await prisma.adminUser.findUnique({
+      where: { id: resetToken.adminId },
+      select: { email: true },
+    });
+
+    if (!admin) {
       return NextResponse.json({ error: "Invalid or expired token" }, { status: 400 });
     }
 
@@ -68,7 +84,7 @@ export async function POST(request: Request) {
       prisma.auditLog.create({
         data: {
           adminUserId: resetToken.adminId,
-          adminEmail: "",
+          adminEmail: admin.email,
           action: "ADMIN_PASSWORD_RESET_CONFIRMED",
           entityType: "AdminUser",
           entityId: resetToken.adminId,

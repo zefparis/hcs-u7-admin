@@ -4,7 +4,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { randomBytes } from "crypto";
+import { randomBytes, createHash } from "crypto";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
@@ -27,6 +27,10 @@ const requestSchema = z.object({
 
 function generateToken(length = 32): string {
   return randomBytes(length).toString("hex");
+}
+
+function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
 }
 
 export async function POST(request: Request) {
@@ -54,6 +58,7 @@ export async function POST(request: Request) {
   }
 
   const token = generateToken(32);
+  const tokenHash = hashToken(token);
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
   const { ipAddress, userAgent } = getClientInfo(request);
@@ -61,7 +66,7 @@ export async function POST(request: Request) {
   await prisma.passwordResetToken.create({
     data: {
       adminId: admin.id,
-      token,
+      token: tokenHash,
       expiresAt,
     },
   });
