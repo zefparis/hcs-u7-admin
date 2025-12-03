@@ -31,6 +31,10 @@ declare module "next-auth" {
 }
 
 export const authConfig: NextAuthConfig = {
+  // Important pour la prod (Vercel) : on fait confiance à l'hôte courant
+  // et on lit le secret depuis AUTH_SECRET ou NEXTAUTH_SECRET.
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+  trustHost: true,
   providers: [
     Credentials({
       name: "Credentials",
