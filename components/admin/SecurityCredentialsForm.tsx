@@ -102,8 +102,8 @@ export function SecurityCredentialsForm() {
       </h2>
       <p className="mb-4 text-xs text-slate-500">
         Mettez à jour l'email et/ou le mot de passe utilisés pour vous connecter au
-        dashboard. Aucun email automatique n'est envoyé pour l'instant ; nous
-        ajouterons Brevo plus tard pour les notifications et resets.
+        dashboard. Les notifications par email sont gérées par le système d'email
+        centralisé (Resend).
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">

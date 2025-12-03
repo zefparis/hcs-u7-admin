@@ -73,7 +73,7 @@ function LoginPageInner() {
     setResetLoading(true);
 
     try {
-      const res = await fetch("/api/account/reset-password", {
+      const res = await fetch("/api/account/request-password-reset", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -83,9 +83,6 @@ function LoginPageInner() {
 
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
-        emailStatus?: number;
-        emailOk?: boolean;
-        emailError?: string;
       };
 
       if (!res.ok) {
@@ -97,17 +94,8 @@ function LoginPageInner() {
         return;
       }
 
-      if (typeof data.emailOk === "boolean" && !data.emailOk) {
-        setError(
-          `Envoi de l'email de réinitialisation échoué (status ${
-            data.emailStatus ?? "inconnu"
-          }). Détail: ${data.emailError ?? "voir logs serveur"}.`,
-        );
-        return;
-      }
-
       setInfo(
-        "Si un compte existe pour cet email, un nouveau mot de passe temporaire vient d'être envoyé. Consultez votre boîte de réception."
+        "Si un compte existe pour cet email, un lien de réinitialisation vient d'être envoyé. Consultez votre boîte de réception."
       );
     } catch {
       setError("Impossible de demander un nouveau mot de passe. Réessayez plus tard.");

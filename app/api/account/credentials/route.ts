@@ -10,8 +10,8 @@ import { z } from "zod";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { sendBrevoEmail } from "@/lib/brevo";
 import { env } from "@/lib/env";
+import { sendAppEmail } from "@/lib/email/resend";
 
 function getClientInfo(request: Request) {
   const ipAddress =
@@ -135,21 +135,18 @@ export async function PATCH(request: Request) {
   });
 
   try {
-    await sendBrevoEmail({
-      to: [
-        {
-          email: updated.email,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          name: (updated as any).fullName ?? updated.email,
-        },
-      ],
+    await sendAppEmail({
+      to: updated.email,
       subject: "Vos identifiants HCS-U7 Admin ont été modifiés",
-      textContent:
-        "Bonjour,\n\nVos identifiants de connexion au dashboard HCS-U7 Admin viennent d'être modifiés (email et/ou mot de passe). Si vous n'êtes pas à l'origine de cette action, contactez immédiatement le support interne.\n\n— HCS-U7 Admin",
+      html:
+        "<p>Bonjour,</p>" +
+        "<p>Vos identifiants de connexion au dashboard HCS-U7 Admin viennent d'être modifiés (email et/ou mot de passe).</p>" +
+        "<p>Si vous n'êtes pas à l'origine de cette action, contactez immédiatement le support interne.</p>" +
+        "<p>— HCS-U7 Admin</p>",
     });
   } catch (error) {
     // eslint-disable-next-line no-console
-    console.error("Failed to send Brevo notification:", error);
+    console.error("Failed to send credentials update notification email:", error);
   }
 
   return NextResponse.json({ success: true });
