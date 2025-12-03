@@ -178,7 +178,7 @@ RESEND_API_KEY=your_resend_api_key_here
 7. **Connexion au dashboard**
 
    - URL de connexion : <http://localhost:3000/login>
-   - **Email** : `admin@ia-solution.fr`
+   - **Email** : `admin@emails.ia-solution.fr`
    - **Mot de passe** : `ChangeMeNow123!`
 
    > ⚠️ **Important** : changez ce mot de passe immédiatement après la première connexion (en mettant à jour l’utilisateur admin dans la base ou via un flux dédié si implémenté en production).

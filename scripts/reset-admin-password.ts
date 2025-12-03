@@ -9,7 +9,7 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 const NEW_PASSWORD = 'HCS-U7_Admin_2025';
-const ADMIN_EMAIL = 'contact@ia-solution.fr';
+const ADMIN_EMAIL = 'contact@emails.ia-solution.fr';
 
 async function main() {
   console.log('🔐 Réinitialisation du mot de passe admin...');

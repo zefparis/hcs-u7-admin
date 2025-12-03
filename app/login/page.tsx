@@ -28,7 +28,7 @@ function LoginPageInner() {
 
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
 
-  const [email, setEmail] = useState("contact@ia-solution.fr");
+  const [email, setEmail] = useState("contact@emails.ia-solution.fr");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
@@ -125,7 +125,7 @@ function LoginPageInner() {
               <Input
                 id="email"
                 type="email"
-                placeholder="contact@ia-solution.fr"
+                placeholder="contact@emails.ia-solution.fr"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

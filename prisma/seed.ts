@@ -16,10 +16,10 @@ async function main() {
   const adminPassword = await bcrypt.hash('ChangeMeNow123!', 10);
   
   const admin = await prisma.adminUser.upsert({
-    where: { email: 'admin@ia-solution.fr' },
+    where: { email: 'admin@emails.ia-solution.fr' },
     update: {},
     create: {
-      email: 'admin@ia-solution.fr',
+      email: 'admin@emails.ia-solution.fr',
       passwordHash: adminPassword,
       fullName: 'Benjamin BARRERE',
       role: 'SUPER_ADMIN',
@@ -127,7 +127,7 @@ async function main() {
   console.log('\n📝 Next steps:');
   console.log('   1. Run: npm run dev');
   console.log('   2. Open: http://localhost:3000/login');
-  console.log('   3. Email: admin@ia-solution.fr');
+  console.log('   3. Email: admin@emails.ia-solution.fr');
   console.log('   4. Password: ChangeMeNow123!');
   console.log('   5. CHANGE PASSWORD IMMEDIATELY!');
 }
