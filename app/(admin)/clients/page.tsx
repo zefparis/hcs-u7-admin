@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 const PAGE_SIZE = 20;
 
 interface ClientsPageProps {
-  searchParams?: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 function getParam(value: string | string[] | undefined): string | undefined {
@@ -65,8 +65,9 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
     AdminRole.SUPPORT,
   ]);
 
-  const pageParam = getParam(searchParams?.page);
-  const qParam = getParam(searchParams?.q);
+  const params = await searchParams;
+  const pageParam = getParam(params?.page);
+  const qParam = getParam(params?.q);
 
   const page = pageParam ? Math.max(1, parseInt(pageParam, 10) || 1) : 1;
   const query = qParam?.trim() ?? "";

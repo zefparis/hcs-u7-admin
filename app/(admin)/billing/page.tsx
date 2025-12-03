@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 const PAGE_SIZE = 100;
 
 interface BillingPageProps {
-  searchParams?: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 function getParam(value: string | string[] | undefined): string | undefined {
@@ -33,12 +33,13 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   const since90 = new Date(now.getTime());
   since90.setDate(since90.getDate() - 90);
 
-  const tenantParam = getParam(searchParams?.tenantId);
-  const typeParam = getParam(searchParams?.type);
-  const paidParam = getParam(searchParams?.paid);
-  const fromParam = getParam(searchParams?.from);
-  const toParam = getParam(searchParams?.to);
-  const pageParam = getParam(searchParams?.page);
+  const params = await searchParams;
+  const tenantParam = getParam(params?.tenantId);
+  const typeParam = getParam(params?.type);
+  const paidParam = getParam(params?.paid);
+  const fromParam = getParam(params?.from);
+  const toParam = getParam(params?.to);
+  const pageParam = getParam(params?.page);
 
   const page = pageParam ? Math.max(1, parseInt(pageParam, 10) || 1) : 1;
 

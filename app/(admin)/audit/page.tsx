@@ -12,7 +12,7 @@ import { requireRole } from "@/lib/auth-helpers";
 export const dynamic = "force-dynamic";
 
 interface AuditPageProps {
-  searchParams?: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 function getParam(value: string | string[] | undefined): string | undefined {
@@ -27,8 +27,9 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
     AdminRole.SUPPORT,
   ]);
 
-  const actionParam = getParam(searchParams?.action)?.trim();
-  const entityParam = getParam(searchParams?.entityType)?.trim();
+  const params = await searchParams;
+  const actionParam = getParam(params?.action)?.trim();
+  const entityParam = getParam(params?.entityType)?.trim();
 
   const where: any = {};
   if (actionParam) {

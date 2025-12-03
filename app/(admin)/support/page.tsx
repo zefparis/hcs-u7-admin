@@ -13,7 +13,7 @@ import { requireRole } from "@/lib/auth-helpers";
 export const dynamic = "force-dynamic";
 
 interface SupportPageProps {
-  searchParams?: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 function getParam(value: string | string[] | undefined): string | undefined {
@@ -60,9 +60,10 @@ export default async function SupportPage({ searchParams }: SupportPageProps) {
     AdminRole.SUPPORT,
   ]);
 
-  const statusParam = getParam(searchParams?.status);
-  const planParam = getParam(searchParams?.plan);
-  const qParam = getParam(searchParams?.q);
+  const params = await searchParams;
+  const statusParam = getParam(params?.status);
+  const planParam = getParam(params?.plan);
+  const qParam = getParam(params?.q);
 
   const where: any = {};
 

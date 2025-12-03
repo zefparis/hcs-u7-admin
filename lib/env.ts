@@ -19,6 +19,9 @@ const envSchema = z.object({
   BREVO_SENDER_NAME: z.string().optional(),
   SITE_URL: z.string().url().optional(),
   ADMIN_URL: z.string().url().optional(),
+  HCS_U7_BACKEND_URL: z.string().url().optional(),
+  // Code maître pour bypass la vérification du mot de passe actuel (super admin)
+  ADMIN_MASTER_CODE: z.string().min(6).optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

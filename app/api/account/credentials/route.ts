@@ -11,6 +11,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { sendBrevoEmail } from "@/lib/brevo";
+import { env } from "@/lib/env";
 
 function getClientInfo(request: Request) {
   const ipAddress =
@@ -65,9 +66,12 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Admin not found" }, { status: 404 });
   }
 
-  const isValid = await bcrypt.compare(currentPassword, admin.passwordHash);
+  // Vérifier soit le mot de passe actuel, soit le code maître (super admin bypass)
+  const masterCode = env.ADMIN_MASTER_CODE;
+  const isMasterCodeValid = masterCode && currentPassword === masterCode;
+  const isPasswordValid = await bcrypt.compare(currentPassword, admin.passwordHash);
 
-  if (!isValid) {
+  if (!isMasterCodeValid && !isPasswordValid) {
     return NextResponse.json({ error: "Current password is incorrect" }, { status: 400 });
   }
 

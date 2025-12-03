@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 const PAGE_SIZE = 50;
 
 interface UsagePageProps {
-  searchParams?: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 function getParam(value: string | string[] | undefined): string | undefined {
@@ -47,12 +47,13 @@ export default async function UsagePage({ searchParams }: UsagePageProps) {
     AdminRole.SUPPORT,
   ]);
 
-  const pageParam = getParam(searchParams?.page);
-  const tenantParam = getParam(searchParams?.tenantId);
-  const endpointParam = getParam(searchParams?.endpoint);
-  const statusParam = getParam(searchParams?.statusCode);
-  const fromParam = getParam(searchParams?.from);
-  const toParam = getParam(searchParams?.to);
+  const params = await searchParams;
+  const pageParam = getParam(params?.page);
+  const tenantParam = getParam(params?.tenantId);
+  const endpointParam = getParam(params?.endpoint);
+  const statusParam = getParam(params?.statusCode);
+  const fromParam = getParam(params?.from);
+  const toParam = getParam(params?.to);
 
   const page = pageParam ? Math.max(1, parseInt(pageParam, 10) || 1) : 1;
 

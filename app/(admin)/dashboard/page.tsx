@@ -11,6 +11,7 @@ import { AdminRole } from "@prisma/client";
 
 import { getDashboardStats } from "@/lib/dashboard-stats";
 import { UsageChart } from "@/components/dashboard/UsageChart";
+import { BackendStatus } from "@/components/dashboard/BackendStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -34,8 +35,11 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* Cartes de stats globales */}
-      <div className="grid gap-4 md:grid-cols-4">
+      {/* Statut Backend */}
+      <div className="grid gap-4 md:grid-cols-5">
+        <BackendStatus />
+
+        {/* Cartes de stats globales */}
         <div className="rounded-lg border border-slate-200 bg-white p-4">
           <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
             Clients totaux
@@ -50,24 +54,24 @@ export default async function DashboardPage() {
 
         <div className="rounded-lg border border-slate-200 bg-white p-4">
           <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            Requêtes API (30 derniers jours)
+            Requêtes API (30j)
           </div>
           <div className="mt-2 text-2xl font-bold">
             {stats.totals.totalRequestsLast30Days}
           </div>
-          <div className="mt-1 text-xs text-slate-500">Toutes routes confondues</div>
+          <div className="mt-1 text-xs text-slate-500">Toutes routes</div>
         </div>
 
         <div className="rounded-lg border border-slate-200 bg-white p-4">
           <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            Revenu (30 derniers jours)
+            Revenu (30j)
           </div>
           <div className="mt-2 text-2xl font-bold">
             {stats.totals.totalRevenueLast30Days.toFixed(2)}
             <span className="ml-1 text-sm font-normal text-slate-500">EUR</span>
           </div>
           <div className="mt-1 text-xs text-slate-500">
-            Basé sur les événements de facturation
+            Événements de facturation
           </div>
         </div>
 
