@@ -28,7 +28,7 @@ function LoginPageInner() {
 
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
 
-  const [email, setEmail] = useState("contact@hcs-u7.tech");
+  const [email, setEmail] = useState("contact@hcs-u7.info");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
@@ -125,7 +125,7 @@ function LoginPageInner() {
               <Input
                 id="email"
                 type="email"
-                placeholder="contact@hcs-u7.tech"
+                placeholder="contact@hcs-u7.info"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
