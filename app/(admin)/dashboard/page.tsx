@@ -23,7 +23,7 @@ export default async function DashboardPage() {
     AdminRole.VIEWER,
   ]);
 
-  const stats = await getDashboardStats();
+  let stats = await getDashboardStats();
 
   return (
     <div className="space-y-6">
