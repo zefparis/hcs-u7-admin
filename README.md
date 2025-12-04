@@ -9,6 +9,7 @@ L’application est un dashboard interne réservé aux administrateurs HCS-U7.
 ## Aperçu rapide
 
 - **Dashboard global** : synthèse clients, trafic API (7 jours), revenu (30 jours), clients à risque.
+- **Access Requests** : gestion des demandes d'accès prospects (approbation/rejet), création automatique de tenants avec email de bienvenue.
 - **Clients** : listing paginé, recherche, statut (TRIAL/ACTIVE/…), quotas et usage, fiche détaillée par client.
 - **API Keys** : génération, affichage masqué, activation/désactivation, association à un tenant et à un environnement (dev/staging/prod).
 - **Usage détaillé** : page dédiée `/usage` listant les appels API avec filtres et pagination.
@@ -56,23 +57,25 @@ L’application est un dashboard interne réservé aux administrateurs HCS-U7.
 ### Routes admin principales
 
 - `/dashboard` : vue d’ensemble (stats, top clients, trafic).
+- `/access-requests` : gestion des demandes d'accès (approbation, rejet, stats).
 - `/clients` : liste des tenants, recherche et pagination.
-- `/clients/[id]` : fiche client (infos, clés API, logs d’usage, événements de facturation).
+- `/clients/[id]` : fiche client (infos, clés API, logs d'usage, événements de facturation).
 - `/api-keys` : génération et gestion des clés API.
 - `/usage` : liste détaillée des appels API (filtres, pagination, IP, erreurs).
 - `/analytics` : analytics détaillées sur 30 jours (endpoints, status HTTP, derniers appels).
 - `/security` : monitoring sécurité sur 24h (erreurs, IP/endpoints problématiques, événements suspects).
 - `/billing` : événements de facturation sur 90 jours (montants, périodes, plans).
-- `/audit` : logs d’audit des actions admin.
+- `/audit` : logs d'audit des actions admin.
 - `/support` : vue multi-tenant pour le support (statut, plan, usage, billing et erreurs récentes).
 - `/admin-users` : gestion des comptes administrateurs internes et de leurs rôles.
 - `/integration` : guides d'intégration API HCS-U7 (snippets backend-only, sans secrets).
 
 ### Modèles Prisma (extrait)
 
-- `Tenant` : client HCS-U7 (plan, statut, quota, usage, métadonnées, notes internes).
+- `Tenant` : client HCS-U7 (plan, statut, quota, usage, auth avec `passwordHash`/`hcsCodeHash`, métadonnées, notes internes).
+- `AccessRequest` : demandes d'accès prospects (email, company, useCase, estimatedVolume, hcsCode, status PENDING/APPROVED/REJECTED).
 - `ApiKey` : clé API hashée, préfixe, environnement, scopes, statut et métadonnées.
-- `UsageLog` : logs d’utilisation de l’API (endpoint, method, status, coût, IP, UA, temps de réponse).
+- `UsageLog` : logs d'utilisation de l'API (endpoint, method, status, coût, IP, UA, temps de réponse).
 - `BillingEvent` : événements de facturation (montant, période, type, métadonnées).
 - `AdminUser` : comptes administrateurs (email, mot de passe hashé, rôle, profil).
 - `AuditLog` : journal des actions admin (qui, quoi, quand, détails, IP, UA).
@@ -99,7 +102,9 @@ Variables attendues :
 - `DATABASE_URL` (**obligatoire**) : URL de connexion PostgreSQL.
 - `NEXTAUTH_URL` (optionnel) : URL publique de l’app (ex. `http://localhost:3000` en dev).
 - `NEXTAUTH_SECRET` (**obligatoire**) : secret utilisé par NextAuth pour signer les JWT.
-- `RESEND_API_KEY` (optionnel) : clé API Resend si l’envoi d’emails est activé.
+- `RESEND_API_KEY` (**obligatoire**) : clé API Resend pour l'envoi d'emails.
+- `RESEND_FROM` (**obligatoire**) : adresse email d'envoi (ex: `noreply@hcs-u7.tech`).
+- `RESEND_REPLY_TO` (**obligatoire**) : adresse de réponse (ex: `support@hcs-u7.tech`).
 - `SITE_URL` (optionnel) : URL publique du site HCS-U7 (front client).
 - `ADMIN_URL` (optionnel) : URL publique du dashboard admin.
 
@@ -120,8 +125,10 @@ NEXTAUTH_SECRET=change-me-in-prod
 SITE_URL=https://hcs-u7.example.com
 ADMIN_URL=https://admin.hcs-u7.example.com
 
-# Email (optionnel)
-RESEND_API_KEY=your_resend_api_key_here
+# Email (obligatoire pour les notifications)
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxx
+RESEND_FROM=noreply@hcs-u7.tech
+RESEND_REPLY_TO=support@hcs-u7.tech
 ```
 
 ---
@@ -256,6 +263,19 @@ Scripts Prisma :
 - Journal des actions admin sur le dashboard.
 - Filtres par action et type d’entité.
 - Visualisation des détails de chaque log (admin, entité, changements, IP, UA).
+
+### Access Requests (`/access-requests`)
+
+- Liste des demandes d'accès avec filtres (statut, use case, recherche).
+- Stats en temps réel : demandes en attente, approuvées aujourd'hui, taux de conversion.
+- **Approbation** : création automatique d'un `Tenant` avec :
+  - Génération d'un mot de passe temporaire sécurisé.
+  - Hashage du code HCS-U7 (2FA cognitif).
+  - Envoi d'un email de bienvenue avec les credentials.
+  - Configuration du plan, quota et période d'essai.
+- **Rejet** : avec raison obligatoire et email de notification optionnel.
+- Badge de notification dans la navigation indiquant les demandes en attente.
+- Accès limité aux rôles `SUPER_ADMIN` et `ADMIN`.
 
 ### Admins (`/admin-users`)
 

@@ -6,6 +6,7 @@
 
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -22,12 +23,16 @@ interface AdminNavProps {
   };
 }
 
-const NAV_ITEMS: {
+interface NavItem {
   href: string;
   label: string;
   roles?: string[];
-}[] = [
+  showBadge?: boolean;
+}
+
+const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/access-requests", label: "Requests", roles: ["SUPER_ADMIN", "ADMIN"], showBadge: true },
   { href: "/clients", label: "Clients" },
   { href: "/api-keys", label: "API Keys" },
   { href: "/audit", label: "Audit" },
@@ -42,6 +47,17 @@ const NAV_ITEMS: {
 export function AdminNav({ user }: AdminNavProps) {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
+  const [pendingCount, setPendingCount] = useState<number>(0);
+
+  // Fetch pending access requests count
+  useEffect(() => {
+    if (["SUPER_ADMIN", "ADMIN"].includes(user.role)) {
+      fetch("/api/admin/access-requests/count?status=PENDING")
+        .then((res) => res.json())
+        .then((data) => setPendingCount(data.count || 0))
+        .catch(() => setPendingCount(0));
+    }
+  }, [user.role]);
 
   const initials =
     user.name
@@ -83,6 +99,11 @@ export function AdminNav({ user }: AdminNavProps) {
                   className="gap-1"
                 >
                   <span>{item.label}</span>
+                  {item.showBadge && pendingCount > 0 && (
+                    <span className="ml-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                      {pendingCount > 99 ? "99+" : pendingCount}
+                    </span>
+                  )}
                 </Button>
               </Link>
             );

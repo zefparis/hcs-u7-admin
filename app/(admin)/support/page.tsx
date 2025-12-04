@@ -97,7 +97,7 @@ export default async function SupportPage({ searchParams }: SupportPageProps) {
       monthlyQuota: true,
       currentUsage: true,
       trialEndsAt: true,
-      subscriptionEndsAt: true,
+      subscriptionStartedAt: true,
       createdAt: true,
       billingEvents: {
         orderBy: { createdAt: "desc" },
@@ -317,8 +317,8 @@ export default async function SupportPage({ searchParams }: SupportPageProps) {
                           : "-"}
                       </div>
                       <div className="text-[10px] text-slate-500">
-                        Abonnement : {tenant.subscriptionEndsAt
-                          ? new Date(tenant.subscriptionEndsAt).toLocaleDateString("fr-FR")
+                        Abonnement depuis : {tenant.subscriptionStartedAt
+                          ? new Date(tenant.subscriptionStartedAt).toLocaleDateString("fr-FR")
                           : "-"}
                       </div>
                     </td>

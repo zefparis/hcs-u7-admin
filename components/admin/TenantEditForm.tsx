@@ -24,7 +24,7 @@ interface TenantEditFormProps {
   monthlyQuota: number;
   internalNotes: string | null;
   trialEndsAt: string | null;
-  subscriptionEndsAt: string | null;
+  subscriptionStartedAt: string | null;
 }
 
 function toDateInputValue(value: string | null): string {
@@ -44,7 +44,7 @@ export function TenantEditForm({
   monthlyQuota,
   internalNotes,
   trialEndsAt,
-  subscriptionEndsAt,
+  subscriptionStartedAt,
 }: TenantEditFormProps) {
   const router = useRouter();
 
@@ -53,8 +53,8 @@ export function TenantEditForm({
   const [quota, setQuota] = useState<string>(String(monthlyQuota));
   const [notes, setNotes] = useState<string>(internalNotes ?? "");
   const [trialEnd, setTrialEnd] = useState<string>(toDateInputValue(trialEndsAt));
-  const [subscriptionEnd, setSubscriptionEnd] = useState<string>(
-    toDateInputValue(subscriptionEndsAt),
+  const [subscriptionStart, setSubscriptionStart] = useState<string>(
+    toDateInputValue(subscriptionStartedAt),
   );
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
@@ -84,7 +84,7 @@ export function TenantEditForm({
           monthlyQuota: parsedQuota,
           internalNotes: notes.trim() === "" ? null : notes,
           trialEndsAt: trialEnd || null,
-          subscriptionEndsAt: subscriptionEnd || null,
+          subscriptionStartedAt: subscriptionStart || null,
         }),
       });
 
@@ -170,12 +170,12 @@ export function TenantEditForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="tenant-subscription-end">Fin d'abonnement</Label>
+          <Label htmlFor="tenant-subscription-start">Début d'abonnement</Label>
           <Input
-            id="tenant-subscription-end"
+            id="tenant-subscription-start"
             type="date"
-            value={subscriptionEnd}
-            onChange={(e) => setSubscriptionEnd(e.target.value)}
+            value={subscriptionStart}
+            onChange={(e) => setSubscriptionStart(e.target.value)}
           />
         </div>
       </div>

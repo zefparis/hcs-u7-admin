@@ -147,10 +147,10 @@ export async function PATCH(request: Request) {
       next: updated.trialEndsAt,
     };
   }
-  if (typeof data.subscriptionEndsAt !== "undefined") {
-    changes.subscriptionEndsAt = {
-      previous: existing.subscriptionEndsAt,
-      next: updated.subscriptionEndsAt,
+  if (typeof data.subscriptionStartedAt !== "undefined") {
+    changes.subscriptionStartedAt = {
+      previous: existing.subscriptionStartedAt,
+      next: updated.subscriptionStartedAt,
     };
   }
 

@@ -182,10 +182,10 @@ export default async function ClientDetailPage({ params }: ClientDetailPageProps
                 {new Date(tenant.trialEndsAt).toLocaleDateString("fr-FR")}
               </div>
             )}
-            {tenant.subscriptionEndsAt && (
+            {tenant.subscriptionStartedAt && (
               <div>
-                Abonnement jusqu'au {""}
-                {new Date(tenant.subscriptionEndsAt).toLocaleDateString("fr-FR")}
+                Abonnement depuis le {""}
+                {new Date(tenant.subscriptionStartedAt).toLocaleDateString("fr-FR")}
               </div>
             )}
           </div>
@@ -407,9 +407,9 @@ export default async function ClientDetailPage({ params }: ClientDetailPageProps
             monthlyQuota={tenant.monthlyQuota}
             internalNotes={tenant.internalNotes}
             trialEndsAt={tenant.trialEndsAt ? tenant.trialEndsAt.toISOString() : null}
-            subscriptionEndsAt={
-              tenant.subscriptionEndsAt
-                ? tenant.subscriptionEndsAt.toISOString()
+            subscriptionStartedAt={
+              tenant.subscriptionStartedAt
+                ? tenant.subscriptionStartedAt.toISOString()
                 : null
             }
           />
