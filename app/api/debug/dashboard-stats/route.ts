@@ -5,7 +5,20 @@
  */
 
 import { NextResponse } from "next/server";
+import { getDashboardStats } from "@/lib/dashboard-stats";
 
 export async function GET() {
-  return NextResponse.json({ error: "Not found" }, { status: 404 });
+  try {
+    const stats = await getDashboardStats();
+    return NextResponse.json({ ok: true, stats });
+  } catch (error: any) {
+    return NextResponse.json(
+      {
+        ok: false,
+        name: error?.name ?? null,
+        message: error?.message ?? "Unknown error",
+      },
+      { status: 500 },
+    );
+  }
 }
