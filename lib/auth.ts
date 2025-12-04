@@ -57,7 +57,7 @@ export const authConfig: NextAuthConfig = {
         const { email, password } = parsed.data;
 
         // Authentification simplifiée pour l'admin unique
-        const ADMIN_EMAIL = "contact@hcs-u7.tech";
+        const ADMIN_EMAIL = "contact@hcs-u7.info";
         const ADMIN_PASSWORD = "HCS-U7admin2025!";
 
         if (email.toLowerCase() === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
