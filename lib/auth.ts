@@ -56,32 +56,44 @@ export const authConfig: NextAuthConfig = {
 
         const { email, password } = parsed.data;
 
-        const admin = await prisma.adminUser.findUnique({
-          where: { email: email.toLowerCase() },
-        });
+        // Authentification simplifiée pour l'admin unique
+        const ADMIN_EMAIL = "contact@hcs-u7.tech";
+        const ADMIN_PASSWORD = "HCS-U7admin2025!";
 
-        if (!admin) {
-          return null;
+        if (email.toLowerCase() === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+          // Chercher ou créer l'admin dans la DB
+          let admin = await prisma.adminUser.findUnique({
+            where: { email: ADMIN_EMAIL },
+          });
+
+          if (!admin) {
+            // Créer l'admin s'il n'existe pas
+            const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 10);
+            admin = await prisma.adminUser.create({
+              data: {
+                email: ADMIN_EMAIL,
+                passwordHash: hashedPassword,
+                fullName: "Admin HCS-U7",
+                role: "SUPER_ADMIN",
+              },
+            });
+          }
+
+          // Update last login timestamp
+          await prisma.adminUser.update({
+            where: { id: admin.id },
+            data: { lastLoginAt: new Date() },
+          });
+
+          return {
+            id: admin.id,
+            email: admin.email,
+            name: admin.fullName ?? admin.email,
+            role: admin.role,
+          } as any;
         }
 
-        const isValid = await bcrypt.compare(password, admin.passwordHash);
-
-        if (!isValid) {
-          return null;
-        }
-
-        // Update last login timestamp
-        await prisma.adminUser.update({
-          where: { id: admin.id },
-          data: { lastLoginAt: new Date() },
-        });
-
-        return {
-          id: admin.id,
-          email: admin.email,
-          name: admin.fullName ?? admin.email,
-          role: admin.role,
-        } as any;
+        return null;
       },
     }),
   ],
