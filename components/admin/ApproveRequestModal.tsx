@@ -7,7 +7,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle, Building2, Mail, User, Briefcase, BarChart3 } from "lucide-react";
+import { CheckCircle, Building2, Mail, User, Briefcase, BarChart3, CreditCard } from "lucide-react";
 
 import {
   Dialog,
@@ -45,12 +45,10 @@ interface ApproveRequestModalProps {
   onSuccess: () => void;
 }
 
-const PLAN_QUOTAS: Record<string, number> = {
-  STARTER: 10000,
-  PRO: 100000,
-  BUSINESS: 500000,
-  ENTERPRISE: 1000000,
-};
+const PLAN_OPTIONS = [
+  { value: "STARTER", label: "Starter", price: 49, quota: "10,000 requests/month" },
+  { value: "PRO", label: "Pro", price: 149, quota: "100,000 requests/month" },
+];
 
 const USE_CASE_LABELS: Record<string, string> = {
   banking: "Banking & Finance",
@@ -75,14 +73,10 @@ export function ApproveRequestModal({
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [plan, setPlan] = useState<string>("STARTER");
-  const [monthlyQuota, setMonthlyQuota] = useState<number>(PLAN_QUOTAS.STARTER);
-  const [trialDays, setTrialDays] = useState<number>(14);
   const [notes, setNotes] = useState<string>("");
+  
+  const selectedPlan = PLAN_OPTIONS.find(p => p.value === plan) || PLAN_OPTIONS[0];
 
-  const handlePlanChange = (newPlan: string) => {
-    setPlan(newPlan);
-    setMonthlyQuota(PLAN_QUOTAS[newPlan] || 10000);
-  };
 
   const handleSubmit = async () => {
     setIsLoading(true);
@@ -94,8 +88,6 @@ export function ApproveRequestModal({
         body: JSON.stringify({
           requestId: request.id,
           plan,
-          monthlyQuota,
-          trialDays,
           notes: notes || undefined,
         }),
       });
@@ -107,8 +99,8 @@ export function ApproveRequestModal({
       }
 
       toast({
-        title: "Tenant created successfully",
-        description: `Welcome email sent to ${request.email}`,
+        title: "Request approved successfully",
+        description: `Payment link sent to ${request.email}`,
         variant: "default",
       });
 
@@ -134,7 +126,7 @@ export function ApproveRequestModal({
             Approve Access Request
           </DialogTitle>
           <DialogDescription>
-            Create a new tenant account and send welcome email with credentials.
+            Send a Stripe payment link to the prospect. The tenant will be created after payment.
           </DialogDescription>
         </DialogHeader>
 
@@ -182,44 +174,39 @@ export function ApproveRequestModal({
 
         {/* Configuration */}
         <div className="space-y-4">
-          <h4 className="text-sm font-medium text-slate-700">Tenant Configuration</h4>
+          <h4 className="text-sm font-medium text-slate-700">Select Plan</h4>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="plan">Plan</Label>
-              <Select
-                id="plan"
-                value={plan}
-                onChange={(e) => handlePlanChange(e.target.value)}
-              >
-                <option value="STARTER">Starter (10k req/mo)</option>
-                <option value="PRO">Pro (100k req/mo)</option>
-                <option value="BUSINESS">Business (500k req/mo)</option>
-                <option value="ENTERPRISE">Enterprise (1M+ req/mo)</option>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="plan">Subscription Plan</Label>
+            <Select
+              id="plan"
+              value={plan}
+              onChange={(e) => setPlan(e.target.value)}
+            >
+              {PLAN_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label} - €{option.price}/month ({option.quota})
+                </option>
+              ))}
+            </Select>
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="quota">Monthly Quota</Label>
-              <Input
-                id="quota"
-                type="number"
-                value={monthlyQuota}
-                onChange={(e) => setMonthlyQuota(parseInt(e.target.value) || 0)}
-                min={1000}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="trial">Trial Days</Label>
-              <Input
-                id="trial"
-                type="number"
-                value={trialDays}
-                onChange={(e) => setTrialDays(parseInt(e.target.value) || 0)}
-                min={0}
-                max={90}
-              />
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <div className="flex items-start gap-2">
+              <CreditCard className="h-5 w-5 text-blue-600 mt-0.5" />
+              <div className="text-sm text-blue-900">
+                <p className="font-medium mb-1">Payment Process</p>
+                <p className="text-blue-700">
+                  A Stripe checkout link will be sent to <strong>{request.email}</strong>.
+                  The link includes:
+                </p>
+                <ul className="mt-2 ml-4 list-disc text-blue-700">
+                  <li>{selectedPlan.label} plan: €{selectedPlan.price}/month</li>
+                  <li>14 days free trial included</li>
+                  <li>Automatic tenant creation after payment</li>
+                  <li>Welcome email with credentials</li>
+                </ul>
+              </div>
             </div>
           </div>
 
@@ -247,7 +234,7 @@ export function ApproveRequestModal({
             onClick={handleSubmit}
             disabled={isLoading}
           >
-            {isLoading ? "Creating..." : "Create Tenant & Send Email"}
+            {isLoading ? "Sending..." : "Approve & Send Payment Link"}
           </Button>
         </DialogFooter>
       </DialogContent>

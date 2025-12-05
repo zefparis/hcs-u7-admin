@@ -225,3 +225,94 @@ export async function sendRejectionEmail({
     html,
   });
 }
+
+export interface StripePaymentEmailParams {
+  to: string;
+  fullName: string;
+  company: string;
+  plan: string;
+  price: number;
+  checkoutUrl: string;
+}
+
+/**
+ * Send email with Stripe payment link
+ */
+export async function sendStripePaymentEmail({
+  to,
+  fullName,
+  company,
+  plan,
+  price,
+  checkoutUrl,
+}: StripePaymentEmailParams) {
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Access Request is Approved!</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+              color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+    .cta { background: #667eea; color: white !important; padding: 15px 40px; 
+          text-decoration: none; border-radius: 6px; display: inline-block; 
+          margin: 20px 0; font-weight: bold; font-size: 18px; }
+    .cta:hover { background: #5a6fd6; }
+    .info-box { background: white; padding: 20px; border-radius: 8px; 
+               border-left: 4px solid #667eea; margin: 20px 0; }
+    .footer { text-align: center; color: #666; font-size: 12px; 
+             margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; }
+    .footer a { color: #667eea; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎉 Your Access Request is Approved!</h1>
+    </div>
+    
+    <div class="content">
+      <p>Hello <strong>${fullName}</strong>${company ? ` from <strong>${company}</strong>` : ''},</p>
+      
+      <p>Great news! Your request to access HCS-U7 has been approved by our team.</p>
+      
+      <div class="info-box">
+        <h3>Selected Plan: ${plan}</h3>
+        <p><strong>Price:</strong> €${price}/month</p>
+        <p><strong>What's included:</strong> Advanced cognitive authentication, bot detection, and full API access.</p>
+      </div>
+      
+      <p><strong>Next step:</strong> Complete your payment to activate your account instantly.</p>
+      
+      <div style="text-align: center;">
+        <a href="${checkoutUrl}" class="cta">Complete Payment (€${price}/month)</a>
+      </div>
+      
+      <p style="font-size: 14px; color: #666; margin-top: 30px;">
+        ⏰ This payment link expires in 24 hours.<br>
+        🔒 Secure payment powered by Stripe.<br>
+        💳 You'll receive your dashboard credentials immediately after payment.
+      </p>
+    </div>
+    
+    <div class="footer">
+      <p><strong>HCS-U7 - Human Cognitive Signature</strong><br>
+      © 2025 IA Solution | Patent Pending FR2514274 & FR2514546</p>
+      <p>Questions? <a href="mailto:support@hcs-u7.tech">support@hcs-u7.tech</a></p>
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+
+  return sendAppEmail({
+    to,
+    subject: `✅ Access Approved - Complete Your Payment (€${price}/mo)`,
+    html,
+  });
+}

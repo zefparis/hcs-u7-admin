@@ -151,18 +151,26 @@ model AccessRequest {
   // HCS Code (stored temporarily, not hashed)
   hcsCode String
 
-  // Status
+  // Status workflow
   status RequestStatus @default(PENDING)
 
   // Tracking
   ipAddress String
   userAgent String
 
+  // Stripe
+  stripeCheckoutUrl String?  // Lien Stripe unique généré
+  stripeSessionId   String?  // Session ID Stripe
+  stripePaid        Boolean  @default(false)
+
   // Admin actions
   approvedBy     String?   // AdminUser.id who approved
   approvedAt     DateTime?
   rejectedReason String?
   adminNotes     String?
+
+  // Relation Tenant créé
+  tenantId String? // Tenant.id après création
 
   // Timestamps
   createdAt DateTime @default(now())
@@ -171,6 +179,7 @@ model AccessRequest {
   @@index([status])
   @@index([email])
   @@index([createdAt])
+  @@index([stripeSessionId])
   @@map("access_requests")
 }
 
@@ -267,9 +276,11 @@ enum BillingEventType {
 }
 
 enum RequestStatus {
-  PENDING
-  APPROVED
-  REJECTED
+  PENDING          // En attente d'examen admin
+  APPROVED         // Approuvé, lien Stripe envoyé
+  PAID             // Prospect a payé
+  TENANT_CREATED   // Tenant créé, email envoyé
+  REJECTED         // Rejeté par admin
 }
 
 enum AdminRole {

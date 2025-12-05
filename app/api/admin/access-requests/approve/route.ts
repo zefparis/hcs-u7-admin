@@ -5,25 +5,22 @@
  */
 
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { z } from "zod";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { generateSecurePassword } from "@/lib/utils/password";
-import { sendWelcomeEmail } from "@/lib/email/welcome";
+import { stripe, STRIPE_PLANS } from "@/lib/stripe";
+import { sendStripePaymentEmail } from "@/lib/email/welcome";
 
 const approveSchema = z.object({
   requestId: z.string().min(1),
-  plan: z.enum(["STARTER", "PRO", "BUSINESS", "ENTERPRISE"]),
-  monthlyQuota: z.number().int().positive(),
-  trialDays: z.number().int().min(0).max(90).default(14),
+  plan: z.enum(["STARTER", "PRO"]),
   notes: z.string().optional(),
 });
 
 /**
  * POST /api/admin/access-requests/approve
- * Approve an access request and create tenant
+ * Approve an access request and send Stripe payment link
  */
 export async function POST(req: Request) {
   try {
@@ -50,7 +47,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const { requestId, plan, monthlyQuota, trialDays, notes } = parsed.data;
+    const { requestId, plan, notes } = parsed.data;
 
     // Get access request
     const accessRequest = await prisma.accessRequest.findUnique({
@@ -71,55 +68,50 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if email already exists
-    const existingTenant = await prisma.tenant.findUnique({
-      where: { email: accessRequest.email },
-    });
-
-    if (existingTenant) {
+    // Check if Stripe is configured
+    if (!stripe) {
       return NextResponse.json(
-        { error: "A tenant with this email already exists" },
-        { status: 409 }
+        { error: "Stripe is not configured" },
+        { status: 500 }
       );
     }
 
-    // Generate temporary password
-    const tempPassword = generateSecurePassword();
-    const passwordHash = await bcrypt.hash(tempPassword, 10);
+    // Create Stripe Checkout Session
+    const planConfig = STRIPE_PLANS[plan];
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.hcs-u7.info';
 
-    // Hash HCS code if provided
-    const hcsCodeHash = accessRequest.hcsCode
-      ? await bcrypt.hash(accessRequest.hcsCode, 10)
-      : null;
+    // Vérifier que le Price ID est configuré
+    if (!planConfig.priceId) {
+      return NextResponse.json(
+        { error: `Stripe Price ID not configured for plan ${plan}` },
+        { status: 500 }
+      );
+    }
 
-    // Calculate trial end date
-    const trialEndsAt = new Date();
-    trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
-
-    // Create tenant and update access request in transaction
-    const [tenant] = await prisma.$transaction([
-      // Create tenant
-      prisma.tenant.create({
-        data: {
-          email: accessRequest.email,
-          fullName: accessRequest.fullName,
-          company: accessRequest.company,
-          passwordHash,
-          hcsCodeHash,
-          mustChangePassword: true,
-          plan: plan as any,
-          status: "TRIAL",
-          monthlyQuota,
-          currentUsage: 0,
-          trialEndsAt,
-          metadata: {
-            useCase: accessRequest.useCase,
-            estimatedVolume: accessRequest.estimatedVolume,
-            source: "access_request",
-            accessRequestId: accessRequest.id,
-          },
+    const stripeSession = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price: planConfig.priceId, // Utiliser le Price ID Stripe
+          quantity: 1,
         },
-      }),
+      ],
+      success_url: `${appUrl}/access-requests/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appUrl}/access-requests/payment-cancelled`,
+      customer_email: accessRequest.email,
+      client_reference_id: requestId, // Important for webhook
+      metadata: {
+        requestId,
+        plan,
+        hcsCode: accessRequest.hcsCode.substring(0, 50), // Tronquer si trop long
+        fullName: accessRequest.fullName,
+        company: accessRequest.company,
+      },
+    });
+
+    // Update access request and create audit log
+    await prisma.$transaction([
       // Update access request
       prisma.accessRequest.update({
         where: { id: requestId },
@@ -128,6 +120,8 @@ export async function POST(req: Request) {
           approvedAt: new Date(),
           approvedBy: (session.user as any).id,
           adminNotes: notes,
+          stripeCheckoutUrl: stripeSession.url,
+          stripeSessionId: stripeSession.id,
         },
       }),
       // Create audit log
@@ -140,9 +134,8 @@ export async function POST(req: Request) {
           entityId: requestId,
           changes: {
             plan,
-            monthlyQuota,
-            trialDays,
-            tenantEmail: accessRequest.email,
+            stripeSessionId: stripeSession.id,
+            checkoutUrl: stripeSession.url,
           },
           ipAddress: req.headers.get("x-forwarded-for") || "unknown",
           userAgent: req.headers.get("user-agent") || "unknown",
@@ -150,30 +143,25 @@ export async function POST(req: Request) {
       }),
     ]);
 
-    // Send welcome email (don't fail if email fails)
+    // Send email with payment link
     try {
-      await sendWelcomeEmail({
-        to: tenant.email,
-        fullName: tenant.fullName,
-        company: tenant.company,
-        dashboardUrl: "https://hcs-u7.online",
-        login: tenant.email,
-        password: tempPassword,
-        hasHcsCode: !!hcsCodeHash,
-        trialDays,
-        plan,
-        monthlyQuota,
+      await sendStripePaymentEmail({
+        to: accessRequest.email,
+        fullName: accessRequest.fullName,
+        company: accessRequest.company,
+        plan: planConfig.name,
+        price: planConfig.price, // Prix en euros
+        checkoutUrl: stripeSession.url!,
       });
     } catch (emailError) {
-      console.error("Failed to send welcome email:", emailError);
-      // Continue anyway - tenant is created
+      console.error("Failed to send payment email:", emailError);
+      // Continue anyway - Stripe session is created
     }
 
     return NextResponse.json({
       success: true,
-      tenantId: tenant.id,
-      email: tenant.email,
-      message: "Tenant created and welcome email sent",
+      checkoutUrl: stripeSession.url,
+      message: "Payment link sent to prospect",
     });
   } catch (error) {
     console.error("Error approving access request:", error);

@@ -27,5 +27,21 @@ export async function sendAppEmail({
     reply_to: env.RESEND_REPLY_TO,
   };
 
-  return resend.emails.send(payload);
+  try {
+    const result = await resend.emails.send(payload);
+
+    if ((result as any)?.error) {
+      // eslint-disable-next-line no-console
+      console.error("Resend sendAppEmail error", (result as any).error);
+    } else {
+      // eslint-disable-next-line no-console
+      console.log("Resend sendAppEmail success", { to });
+    }
+
+    return result;
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("Resend sendAppEmail exception", error);
+    throw error;
+  }
 }
