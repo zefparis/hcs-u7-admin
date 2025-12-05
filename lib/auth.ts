@@ -93,6 +93,9 @@ export const authConfig: NextAuthConfig = {
           } as any;
         }
 
+        // Les tenants ne doivent PAS pouvoir se connecter au dashboard admin
+        // Ils doivent utiliser leur propre interface sur https://hcs-u7.online
+        
         return null;
       },
     }),
