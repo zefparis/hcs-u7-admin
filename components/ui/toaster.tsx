@@ -6,6 +6,7 @@
 
 "use client";
 
+import type { ReactNode } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ToastProvider, useToast } from "@/components/ui/use-toast";
 
@@ -33,9 +34,10 @@ function ToastViewport() {
   );
 }
 
-export function Toaster() {
+export function Toaster({ children }: { children: ReactNode }) {
   return (
     <ToastProvider>
+      {children}
       <ToastViewport />
     </ToastProvider>
   );
