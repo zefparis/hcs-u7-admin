@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApproveRequestModal } from "@/components/admin/ApproveRequestModal";
 import { RejectRequestModal } from "@/components/admin/RejectRequestModal";
+import { ViewRequestModal } from "@/components/admin/ViewRequestModal";
 
 interface AccessRequest {
   id: string;
@@ -85,6 +86,7 @@ export function AccessRequestsClient() {
   // Modals
   const [approveRequest, setApproveRequest] = useState<AccessRequest | null>(null);
   const [rejectRequest, setRejectRequest] = useState<AccessRequest | null>(null);
+  const [viewRequest, setViewRequest] = useState<AccessRequest | null>(null);
 
   const fetchRequests = useCallback(async () => {
     setIsLoading(true);
@@ -327,6 +329,7 @@ export function AccessRequestsClient() {
                         variant="ghost"
                         className="h-7 px-2 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
                         title="View details"
+                        onClick={() => setViewRequest(request)}
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -388,6 +391,14 @@ export function AccessRequestsClient() {
             setRejectRequest(null);
             fetchRequests();
           }}
+        />
+      )}
+
+      {viewRequest && (
+        <ViewRequestModal
+          request={viewRequest}
+          open={!!viewRequest}
+          onOpenChange={(open) => !open && setViewRequest(null)}
         />
       )}
     </div>
