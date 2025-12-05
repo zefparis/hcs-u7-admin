@@ -10,6 +10,7 @@ import { AdminRole, type TenantStatus, type Environment, type BillingEventType }
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth-helpers";
 import { TenantEditForm } from "@/components/admin/TenantEditForm";
+import { ResendCredentialsButton } from "@/components/admin/ResendCredentialsButton";
 
 export const dynamic = "force-dynamic";
 
@@ -145,6 +146,11 @@ export default async function ClientDetailPage({ params }: ClientDetailPageProps
           >
             Logs d'audit (Tenant)
           </a>
+          <ResendCredentialsButton
+            tenantId={tenant.id}
+            tenantEmail={tenant.email}
+            tenantName={tenant.fullName}
+          />
         </div>
       </div>
 
