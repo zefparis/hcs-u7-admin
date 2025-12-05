@@ -9,7 +9,7 @@ import { z } from "zod";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { stripe, STRIPE_PLANS } from "@/lib/stripe";
+import { stripe, getStripePlans } from "@/lib/stripe";
 import { sendStripePaymentEmail } from "@/lib/email/welcome";
 
 const approveSchema = z.object({
@@ -78,6 +78,7 @@ export async function POST(req: Request) {
     }
 
     // Create Stripe Checkout Session
+    const STRIPE_PLANS = getStripePlans();
     const planConfig = STRIPE_PLANS[plan];
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.hcs-u7.info';
 
