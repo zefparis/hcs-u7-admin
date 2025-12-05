@@ -70,8 +70,9 @@ export async function POST(req: Request) {
 
     // Check if Stripe is configured
     if (!stripe) {
+      console.error("Stripe not configured. STRIPE_SECRET_KEY:", !!process.env.STRIPE_SECRET_KEY);
       return NextResponse.json(
-        { error: "Stripe is not configured" },
+        { error: "Stripe is not configured", hasKey: !!process.env.STRIPE_SECRET_KEY },
         { status: 500 }
       );
     }
@@ -163,10 +164,14 @@ export async function POST(req: Request) {
       checkoutUrl: stripeSession.url,
       message: "Payment link sent to prospect",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error approving access request:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { 
+        error: "Internal server error", 
+        message: error?.message || "Unknown error",
+        stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+      },
       { status: 500 }
     );
   }
