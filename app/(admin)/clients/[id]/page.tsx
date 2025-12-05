@@ -15,7 +15,7 @@ import { ResendCredentialsButton } from "@/components/admin/ResendCredentialsBut
 export const dynamic = "force-dynamic";
 
 interface ClientDetailPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 function formatStatus(status: TenantStatus): string {
@@ -90,6 +90,8 @@ function formatBillingType(type: BillingEventType): string {
 }
 
 export default async function ClientDetailPage({ params }: ClientDetailPageProps) {
+  const { id } = await params;
+  
   const session = await requireRole([
     AdminRole.SUPER_ADMIN,
     AdminRole.ADMIN,
@@ -97,7 +99,7 @@ export default async function ClientDetailPage({ params }: ClientDetailPageProps
   ]);
 
   const tenant = await prisma.tenant.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       apiKeys: { orderBy: { createdAt: "desc" } },
       billingEvents: { orderBy: { createdAt: "desc" }, take: 10 },
